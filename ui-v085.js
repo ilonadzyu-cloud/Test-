@@ -1,4 +1,5 @@
-// v0.8.5 – visual shell only. Story/mechanics stay in main.js.
+// v0.8.7 – visual shell + isolated battle test hook.
+import {installBattleTest} from './battle.js?v=087';
 
 const groups085 = {
   hero: {
@@ -58,7 +59,6 @@ function buildStart085(){
   const runPicker=q085('#runPicker');
   if(!card||!actions||!runPicker)return;
 
-  // Continue first reads more naturally for a returning player.
   if(continueBtn) actions.prepend(continueBtn);
 
   if(!q085('.start-tagline')){
@@ -160,10 +160,16 @@ function buildGroupedMenu085(){
   sync();
 }
 
+function stampVersion087(){
+  document.querySelectorAll('.version,.howto-version,.game-name span').forEach(el=>el.textContent='v0.8.7');
+}
+
 function boot085(){
   document.body.classList.add('ui-v085');
+  stampVersion087();
   buildStart085();
   buildGroupedMenu085();
+  installBattleTest();
 }
 
 boot085();
