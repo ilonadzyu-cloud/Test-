@@ -6,19 +6,22 @@
   <meta name="theme-color" content="#0b100d">
   <title>Десь не там</title>
   <link rel="stylesheet" href="./styles.css?v=084">
-  <link rel="stylesheet" href="./ui-v085.css?v=091">
+  <link rel="stylesheet" href="./ui-v085.css?v=092">
 </head>
 <body>
 <main id="app">
   <section id="startScreen" class="screen start-screen">
     <div class="start-card">
-      <div class="version">v0.9.1</div>
+      <div class="version">v0.9.2</div>
       <h1>ДЕСЬ НЕ ТАМ</h1>
       <p class="subtitle">текстова виживалка з комедією, крінжем і хорором</p>
       <div id="startActions" class="start-actions">
         <button id="newGameBtn" class="primary big">Нова гра</button>
         <button id="continueBtn" class="big">Продовжити</button>
         <button id="chaptersBtn" class="big">Глави</button>
+        <button id="savesBtn" class="big">Збереження</button>
+        <button id="aboutBtn" class="big">Про гру</button>
+        <button id="testModeBtn" class="big ghost">Тест</button>
       </div>
       <div id="runPicker" class="run-picker hidden"></div>
       <div id="storageStatus" class="storage-status small hidden"></div>
@@ -28,14 +31,14 @@
   <section id="howToScreen" class="screen howto-screen hidden">
     <div class="howto-wrap">
       <div class="howto-head">
-        <div class="howto-version">v0.9.1</div>
+        <div class="howto-version">v0.9.2</div>
         <h1 class="howto-title">ДЕСЬ НЕ ТАМ</h1>
         <p class="subtitle">текстова виживалка з комедією, крінжем і хорором</p>
         <div class="howto-kicker">ПЕРЕД ТИМ, ЯК ЛІЗТИ В ЦЕ СЕЛО</div>
       </div>
 
-      <div class="howto-grid">
-        <article class="howto-card howto-lead">
+      <div class="howto-grid preview-grid">
+        <article class="howto-card howto-lead preview-lead">
           <h2>Кожне ваше рішення має значення.</h2>
           <p>Вибір може змінити стан героя, вплинути на ставлення до вас або вилізти боком значно пізніше. Не все корисне виявиться добрим, а не кожна хуйова ідея закінчиться хуйово.</p>
           <p>Стани й характеристики можуть відкривати нові варіанти в діалогах і діях.</p>
@@ -47,7 +50,7 @@
         </article>
         <article class="howto-card">
           <h2>Характеристики</h2>
-          <p>Сила, уважність, спритність, харизма й інші характеристики ростуть по ходу гри. Вони впливають на перевірки й інколи відкривають варіанти, яких ви інакше навіть не побачите.</p>
+          <p>За досвід росте загальний рівень героя. Кожен новий рівень дає очко прокачки, а куди його вкласти – вирішуєте ви.</p>
         </article>
         <article class="howto-card">
           <h2>Інвентар і виживання</h2>
@@ -65,7 +68,7 @@
   <section id="gameScreen" class="game-shell hidden">
     <header class="game-top">
       <div class="top-copy">
-        <div class="game-name">ДЕСЬ НЕ ТАМ <span>v0.9.1</span></div>
+        <div class="game-name">ДЕСЬ НЕ ТАМ <span>v0.9.2</span></div>
         <div class="world-line"><b id="timeLine"></b><span id="weatherLine"></span><span id="threatLine"></span></div>
       </div>
       <div id="miniNeeds" class="mini-needs" role="button" tabindex="0" aria-label="Відкрити потреби"></div>
@@ -125,9 +128,36 @@
     </div>
   </div>
 
+  <div id="aboutOverlay" class="about-overlay hidden" aria-hidden="true">
+    <div class="about-dialog" role="dialog" aria-modal="true" aria-label="Про гру">
+      <div class="about-head"><div><div class="confirm-kicker">ПРО ГРУ</div><div class="confirm-title">ДЕСЬ НЕ ТАМ</div></div><button id="aboutCloseBtn" class="icon-btn">✕</button></div>
+      <div class="about-copy">
+        <p><b>«Десь не там»</b> – текстова хорор-комедія з виборами, виживанням і наслідками, які можуть вилізти значно пізніше.</p>
+        <p><b>Вибори.</b> Персонажі памʼятають ваші дії, а частина наслідків прихована.</p>
+        <p><b>Стани.</b> Голод, страх, холод, будуняра та інша хуйня реально впливають на характеристики й бій.</p>
+        <p><b>Прокачка.</b> За досвід росте загальний рівень героя та Євпапія. За очки прокачки ви самі вирішуєте, що піднімати.</p>
+        <p><b>Сейви.</b> Є автосейв, ручні сейви й окремий чекпойнт на початку кожної глави, щоб старі рішення не губились.</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="deathOverlay" class="death-overlay hidden" aria-hidden="true">
+    <div class="death-dialog" role="dialog" aria-modal="true" aria-label="Ви здохли">
+      <div class="death-kicker">КІНЕЦЬ ЦЬОГО РАЗУ</div>
+      <h2>ВИ ЗДОХЛИ</h2>
+      <p>Темно. Тихо. Цього разу село вас пережило.</p>
+      <div id="deathManualSaves" class="death-manual hidden"></div>
+      <div class="death-actions">
+        <button id="deathManualBtn" type="button">Завантажити ручний сейв</button>
+        <button id="deathChapterBtn" type="button" class="primary">Почати цю главу заново</button>
+        <button id="deathMenuBtn" type="button" class="ghost">Вийти в меню</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="toast hidden"></div>
 </main>
-<script type="module" src="./main.js?v=091"></script>
-<script type="module" src="./ui-v085.js?v=091"></script>
+<script type="module" src="./main.js?v=092"></script>
+<script type="module" src="./ui-v085.js?v=092"></script>
 </body>
 </html>

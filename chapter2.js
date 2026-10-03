@@ -1,5 +1,5 @@
-import {ITEM_DEFS} from './data.js?v=090';
-import {effectiveStat} from './engine.js?v=091';
+import {ITEM_DEFS} from './data.js?v=092';
+import {effectiveStat} from './engine.js?v=092';
 
 const img=n=>`./${n}`;
 const hero=(name='ch2_hero_local.png',position='hero')=>({role:'hero',src:img(name),position});
@@ -62,7 +62,7 @@ export const CHAPTER2_SCENES={
 Ви ще секунду дивитесь на нього.
 
 Реально говорить.`,
-    notice:{title:'АХУЙ',body:'прогрес +1'},
+    notice:{title:'ДОСВІД +10',body:'Отримано за сюжетну дію.'},
     choices:[{id:'ch2_real_next',label:'Далі',next:'ch2_crowd'}]
   },
 
@@ -142,7 +142,7 @@ export const CHAPTER2_SCENES={
 – Я тебе зараз цією лавкою…
 
 – Та тихо ти. Май повагу. Ти на поминках.`,
-    notice:{title:'ЛАВКУ ДОТАСКАЛИ',body:'сила: прогрес +1'},
+    notice:{title:'ЛАВКУ ДОТАСКАЛИ',body:'ДОСВІД +10'},
     choices:[{id:'bench_done',label:'Сісти вже нарешті.',next:'ch2_table'}]
   },
 
@@ -303,7 +303,7 @@ export const CHAPTER2_SCENES={
 – Метод хуєвий, – каже Євпапій.
 
 – Зато науковий.`,
-    notice:{title:'ВИ ШОСЬ ПОБАЧИЛИ',body:'уважність: прогрес +1'},
+    notice:{title:'ВИ ШОСЬ ПОБАЧИЛИ',body:'ДОСВІД +10'},
     choices:s=>{
       const out=[];
       if(itemCount(s,'salo')>0)out.push({id:'side_salo',label:'Ладно. Тепер дати Євпапію сало.',next:'ch2_salo'});
@@ -402,7 +402,7 @@ export const CHAPTER2_SCENES={
 
   ch2_end:{
     ...shed,id:'ch2_end',caption:'кінець глави 2',actors:[hero('ch2_hero_scared.png'),hood()],
-    onEnter:[{type:'flag',key:'chapter2Complete',value:true}],
+    onEnter:[{type:'flag',key:'chapter2Complete',value:true},{type:'statusAdd',id:'scared'}],
     text:`Глава 2 завершена.`,
     notice:{title:'ГЛАВА 3 ВІДКРИТА',body:'Усе, що ви встигли наробити, збережено.'},
     choices:[{id:'ch2_to_ch3',label:'ГЛАВА 3. КРАЩЕ СЦЯТИ В ТУАЛЕТІ',next:'ch3_intro'}]

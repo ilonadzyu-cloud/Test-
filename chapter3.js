@@ -1,4 +1,4 @@
-import {ITEM_DEFS} from './data.js?v=090';
+import {ITEM_DEFS} from './data.js?v=092';
 
 const img=n=>`./${n}`;
 const hero=(name='ch2_hero_scared.png',position='hero')=>({role:'hero',src:img(name),position});
@@ -67,7 +67,7 @@ export const CHAPTER3_SCENES={
 Воно теж вас помічає.
 
 – Блядь.`,
-    notice:{title:'АХУЙ +1',body:''},
+    notice:{title:'ДОСВІД +10',body:''},
     choices:[{id:'ch3_turn_next',label:'…',next:'ch3_creature'}]
   },
 
@@ -109,7 +109,7 @@ export const CHAPTER3_SCENES={
 – Ще слово – і підеш туди першим.
 
 Ви дивитесь на сарай. Потім на руку на своєму роті. І вирішуєте, що ще буквально секунд десять можете потерпіти.`,
-    notice:{title:'ПОХУЇЗМ +1',body:''},
+    notice:{title:'ДОСВІД +10',body:''},
     choices:[{id:'ch3_tell_next',label:'…',next:'ch3_creature'}]
   },
 
@@ -157,7 +157,7 @@ export const CHAPTER3_SCENES={
 – Тепер воно повернеться.
 
 – Заєбісь, – каже Євпапій.`,
-    choices:[{id:'ch3_vodka_pause',label:'Далі',next:'ch3_branch_pending'}]
+    choices:[{id:'ch3_vodka_pause',label:'Далі',next:'ch3_galina'}]
   },
 
   ch3_garlic:{
@@ -272,7 +272,7 @@ export const CHAPTER3_SCENES={
 – Пішли.
 
 Навіть Євпапій цього разу мовчить.`,
-    choices:[{id:'ch3_pray_pause',label:'Далі',next:'ch3_branch_pending'}]
+    choices:[{id:'ch3_pray_pause',label:'Далі',next:'ch3_galina'}]
   },
 
   ch3_wakeup:{
@@ -307,9 +307,9 @@ export const CHAPTER3_SCENES={
   },
 
   ch3_galina:{
-    ...shed,id:'ch3_galina',caption:'баба галя',actors:[hero('hero_injured.png'),galina()],
+    ...shed,id:'ch3_galina',caption:'баба галя',actors:s=>[hero(s.activeStatuses?.includes('headInjury')?'hero_injured.png':'ch2_hero_local.png'),galina()],
     onEnter:[{type:'flag',key:'chapter3PreviewEnd',value:true}],
-    text:`Ви ще крутите ключ у руці, коли з-за рогу зʼявляється баба Галя. Дивиться на вас, на кров на потилиці, на сарай. Обличчя міняється буквально на секунду, але потім знов стає таким, ніби нічого особливого не сталося.
+    text:s=>s.activeStatuses?.includes('headInjury')?`Ви ще крутите ключ у руці, коли з-за рогу зʼявляється баба Галя. Дивиться на вас, на кров на потилиці, на сарай. Обличчя міняється буквально на секунду, але потім знов стає таким, ніби нічого особливого не сталося.
 
 – Баб Галь, шо то було?
 
@@ -324,6 +324,18 @@ export const CHAPTER3_SCENES={
 – Баб Галь.
 
 – Ходи вже.
+
+Євпапій плететься слідом, але в хату не заходить.`:`Баба Галя зʼявляється з-за рогу й кілька секунд дивиться на вас, потім на сарай. Обличчя міняється буквально на секунду, але вона одразу робить вигляд, ніби нічого особливого не сталося.
+
+– Баб Галь, шо то було?
+
+Вона підходить, бере вас за лікоть і розвертає в бік хати.
+
+– Ходи до хати.
+
+– Я питаю, шо це було.
+
+– Чула. Ходи вже.
 
 Євпапій плететься слідом, але в хату не заходить.`,
     notice:{title:'ПРОДОВЖЕННЯ ТРЕТЬОЇ ГЛАВИ БУДЕ...',body:'Усе, що ви встигли наробити, збережено.'},

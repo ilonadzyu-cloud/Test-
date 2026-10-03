@@ -1,7 +1,7 @@
-// v0.9.1 – combat test + first story battle.
-import {createInitialState,normalizeState,effectiveStat,equipmentTotals,itemCount,removeItem,clone} from './engine.js?v=091';
-import {STATUS_DEFS} from './data.js?v=090';
-import {loadRun} from './storage.js?v=083';
+// v0.9.2 – combat test + story battle + healing/progression UI.
+import {createInitialState,normalizeState,effectiveStat,equipmentTotals,itemCount,removeItem,clone,addHeroXp,addEvpXp} from './engine.js?v=092';
+import {STATUS_DEFS} from './data.js?v=092';
+import {loadRun} from './storage.js?v=092';
 
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
@@ -33,10 +33,10 @@ const THROWABLES={
 };
 
 function ensureBattleCss(){
-  if(document.querySelector('link[data-battle-css="091"]'))return;
+  if(document.querySelector('link[data-battle-css="092"]'))return;
   document.querySelector('link[data-battle-css]')?.remove();
   const link=document.createElement('link');
-  link.rel='stylesheet';link.href='./battle.css?v=091';link.dataset.battleCss='091';document.head.appendChild(link);
+  link.rel='stylesheet';link.href='./battle.css?v=092';link.dataset.battleCss='092';document.head.appendChild(link);
 }
 
 function currentRunId(){const meta=document.querySelector('#menuMeta')?.textContent||'';const m=meta.match(/Проходження\s+(\d+)/i);return Math.max(1,Number(m?.[1]||1))}
@@ -47,9 +47,9 @@ function heroStat(key){return effectiveStat(sourceState,key)}
 function armor(){return Number(equipmentTotals(sourceState).armor||0)}
 
 function syncEvpapiySession(){
-  const saved=sourceState?.companions?.evpapiy||{};
-  const level=Math.max(1,Number(saved.level||1));
-  const maxHp=50+(level-1)*10;
+  const saved=sourceState?.companions?.evpapiy||{},prog=saved.progression||{};
+  const level=Math.max(1,Number(prog.level||saved.level||1));
+  const maxHp=Math.max(50,Number(saved.maxHp||50+(Math.max(1,Number(prog.health||1))-1)*10));
   if(battleKind==='story'){
     evpSession.level=level;evpSession.maxHp=maxHp;
     evpSession.hp=clamp(Number(saved.hp??maxHp),0,maxHp);
@@ -67,12 +67,13 @@ function energyCost(base){let extra=0;if(hasStatus('tired'))extra+=2;if(hasStatu
 function randomIntent(b){if(b?.pigeon?.available&&Math.random()<.14)return{...INTENTS.pigeon};const pool=[INTENTS.lunge,INTENTS.grab,INTENTS.heavy,INTENTS.sweep];return{...pool[Math.floor(Math.random()*pool.length)]}}
 
 function initialItems(){
-  if(battleKind==='test')return{onion:2,onionAngry:1,onionSmelly:1,garlic:1};
+  if(battleKind==='test')return{onion:2,onionAngry:1,onionSmelly:1,garlic:1,medkit:2};
   return{
     onion:itemCount(sourceState,'onion'),
     onionAngry:itemCount(sourceState,'onion_angry'),
     onionSmelly:itemCount(sourceState,'onion_smelly'),
-    garlic:itemCount(sourceState,'garlic')
+    garlic:itemCount(sourceState,'garlic'),
+    medkit:itemCount(sourceState,'medkit')
   };
 }
 
@@ -83,7 +84,7 @@ function freshBattle(){
   let pigeonAvailable=true,recovering=false;
   if(evpSession.skipBattles>0){pigeonAvailable=false;recovering=true;evpSession.skipBattles-=1;evpSession.hp=evpSession.maxHp}
   const b={
-    heroMax:100,heroHp:hp,heroEnergy:energy,
+    heroMax:100,heroHp:hp,heroEnergy:energy,heroLevel:Math.max(1,Number(sourceState?.heroProgression?.level||1)),
     enemyName:storyOptions?.enemyName||'ТЕСТОВА ХУЙНЯ',enemyMax:Number(storyOptions?.enemyMax||100),enemyHp:Number(storyOptions?.enemyHp||100),
     enemyArt:storyOptions?.enemyArt||null,enemyAttackArt:storyOptions?.enemyAttackArt||null,
     storyId:storyOptions?.id||null,lockVictory:Boolean(storyOptions?.lockVictory),
@@ -161,8 +162,9 @@ function triggerShedKnife(){
 
 function actKnife(){const cost=energyCost(7);if(!spend(cost)){renderBattle();return}if(battleKind==='story'&&battle.storyId==='shedCreature')return triggerShedKnife();hurtEnemy(physicalDamage(14),'Ніж');finishHeroAction()}
 function actDodge(){const cost=energyCost(hasStatus('hangover')?10:8);if(!spend(cost)){renderBattle();return}battle.dodging=true;addLog('Ви готуєтесь відскочити.');finishHeroAction()}
-function actPigeon(){if(!battle.pigeon.available)return;const cost=energyCost(10);if(!spend(cost)){renderBattle();return}battle.pigeonThrown=true;battle.pigeonUsed=true;battle.pigeonTargetTurns=1;hurtEnemy(physicalDamage(8),'Євпапій');finishHeroAction()}
+function actPigeon(){if(!battle.pigeon.available)return;const cost=energyCost(10);if(!spend(cost)){renderBattle();return}battle.pigeonThrown=true;battle.pigeonUsed=true;battle.pigeonTargetTurns=1;const ep=sourceState?.companions?.evpapiy?.progression||{};const dmg=8+Number(ep.attack||1)*2+Number(ep.aggression||1);hurtEnemy(dmg,'Євпапій');finishHeroAction()}
 function actSunset(){if(!battle.pigeon.available)return;const cost=energyCost(6);if(!spend(cost)){renderBattle();return}battle.sunsetUsed=true;battle.pigeonUsed=true;battle.pigeonTargetTurns=1;hurtEnemy(Math.max(1,Math.ceil(battle.enemyHp/2)),'ЗАКАТ ПРЄЗРЄНІЯ');finishHeroAction()}
+function actHeal(){if(Number(battle.items.medkit||0)<=0||battle.heroHp>=battle.heroMax)return;battle.items.medkit-=1;consume('medkit',1);const before=battle.heroHp;battle.heroHp=clamp(battle.heroHp+25,0,battle.heroMax);addLog(`Аптечка: +${battle.heroHp-before} HP`);battle.mode='actions';finishHeroAction()}
 
 function actItem(key){
   const cost=energyCost(4);if(!spend(cost)){renderBattle();return}if(!battle.items[key])return;
@@ -174,7 +176,8 @@ function actItem(key){
   battle.mode='actions';finishHeroAction();
 }
 
-function statusChips(){const ids=(sourceState?.activeStatuses||[]).filter(id=>STATUS_DEFS[id]);if(!ids.length)return'<span class="battle-no-state">СТАНІВ НЕМА</span>';return ids.map(id=>`<span>${esc(STATUS_DEFS[id].name)}</span>`).join('')}
+function battleStatusEffect(id){const map={hangover:'перша атака слабша · відскок дорожчий',scared:'уважність +2 · спритність +1 · похуїзм -2',wet:'одяг мокрий · холод дістає швидше',cold:'спритність -1',overheated:'бадьорість витрачається швидше',tired:'бадьорість витрачається швидше · спритність -1',hungry:'фізичний урон слабший',thirsty:'бадьорість витрачається швидше',angry:'сила +2 · похуїзм +1 · харизма -2',suspicious:'точніше бачите, що готує ворог',skunk:'ворог -3 HP/хід · може зірвати атаку',tipsy:'похуїзм +2 · харизма +1 · уважність -1 · спритність -1',headInjury:'важче прочитати атаку · уважність -1 · спритність -1',bump:'уважність -1',cowLicked:'усі характеристики +5',blessed:'негативні модифікатори станів слабші на 1',yebatorium:'уважність +1 · похуїзм +1 · ахуй +1',pigeonHumiliated:'харизма -1 · похуїзм +1'};if(map[id])return map[id];const d=STATUS_DEFS[id],parts=[];for(const [k,v] of Object.entries(d?.mods||{}))if(v)parts.push(`${k} ${v>0?'+':''}${v}`);return parts.join(' · ')||'активний стан'}
+function statusChips(){const ids=(sourceState?.activeStatuses||[]).filter(id=>STATUS_DEFS[id]);if(!ids.length)return'<span class="battle-no-state">СТАНІВ НЕМА</span>';return ids.map(id=>`<span class="battle-state-chip"><b>${esc(STATUS_DEFS[id].name)}</b><small>${esc(battleStatusEffect(id))}</small></span>`).join('')}
 function enemyEffects(){const out=[];if(battle.blindTurns>0)out.push(`ПОГАНО БАЧИТЬ · ${battle.blindTurns} ХІД`);if(battle.angryOnionTurns>0)out.push(`ЗЛА ЦИБУЛЯ ВГРИЗЛАСЬ · -4 HP/ХІД · ${battle.angryOnionTurns} ХОД.`);if(battle.stunTurns>0)out.push(`ВИРУБИВСЯ · ${battle.stunTurns} ХОД.`);if(hasStatus('skunk'))out.push('СКУНС · -3 HP/ХІД');return out}
 function actionButton(label,action,{disabled=false,extra=''}={}){return `<button type="button" class="battle-action ${extra}" data-battle-action="${action}" ${disabled?'disabled':''}>${esc(label)}</button>`}
 function availableThrowables(){return Object.entries(THROWABLES).filter(([key])=>Number(battle.items[key]||0)>0)}
@@ -192,6 +195,7 @@ function renderActionArea(){
     ${actionButton('ВʼЄБАТИ НОЖЕМ','knife',{disabled:!hasKnife||battle.heroEnergy<knifeCost})}
     ${actionButton('ВІДСКОЧИТИ','dodge',{disabled:battle.heroEnergy<dodgeCost})}
     ${actionButton('КИНУТИ ПРЕДМЕТ','items',{disabled:!availableThrowables().length||battle.heroEnergy<energyCost(4)})}
+    ${Number(battle.items.medkit||0)>0?actionButton(`ЛІКУВАТИСЬ · 🩹 ×${battle.items.medkit}`,'heal',{disabled:battle.heroHp>=battle.heroMax}):''}
     ${pigeonAvailable&&!battle.pigeonThrown?actionButton('КИНУТИ ЄВПАПІЄМ','pigeon',{disabled:battle.heroEnergy<pigeonCost}):''}
     ${pigeonAvailable&&!battle.sunsetUsed&&(battleKind==='test'||sourceState?.unlocks?.sunsetContempt)?actionButton('ЗАКАТ ПРЄЗРЄНІЯ','sunset',{disabled:battle.heroEnergy<sunsetCost,extra:'special'}):''}
   </div>`;
@@ -230,7 +234,7 @@ function renderBattle(){
   overlay.querySelector('[data-enemy-name]').textContent=battle.enemyName;
   overlay.querySelector('[data-enemy-hp]').textContent=`❤️ ${Math.round(clamp(battle.enemyHp/battle.enemyMax*100,0,100))}%`;
   overlay.querySelector('[data-hero-hp]').textContent=`❤️ ${Math.round(clamp(battle.heroHp/battle.heroMax*100,0,100))}%`;
-  overlay.querySelector('[data-energy]').textContent=`⚡ ${Math.round(clamp(battle.heroEnergy,0,100))}%`;
+  overlay.querySelector('[data-energy]').textContent=`⚡ ${Math.round(clamp(battle.heroEnergy,0,100))}%`;overlay.querySelector('[data-hero-level]').textContent=`РІВ. ${battle.heroLevel}`;
   overlay.querySelector('[data-battle-turn]').textContent=`ХІД ${battle.turn}`;
   overlay.querySelector('[data-battle-states]').innerHTML=statusChips();
   overlay.querySelector('[data-battle-log]').innerHTML=battle.log.map(x=>`<div>${esc(x)}</div>`).join('');
@@ -251,16 +255,17 @@ function applyBattleToStoryState(){
   const s=clone(normalizeState(sourceState));s.health=clamp(battle.heroHp,0,100);s.needs.energy=clamp(battle.heroEnergy,0,100);
   for(const [id,qty] of Object.entries(battle.consumed||{}))removeItem(s,id,qty);
   const p=s.companions.evpapiy;s.companions.evpapiy={...p,level:battle.pigeon.level,maxHp:battle.pigeon.maxHp,hp:battle.pigeon.hp,skipBattles:evpSession.skipBattles,offended:battle.pigeon.offended||evpSession.offended};
+  const progressEvents=[...addHeroXp(s,20)];if(s.companions.evpapiy?.known&&battle.pigeon.available)progressEvents.push(...addEvpXp(s,20));battle.progressEvents=progressEvents;
   return normalizeState(s);
 }
 
 function finishStoryBattle(){
-  if(!storyResolver)return;const resolve=storyResolver;storyResolver=null;const state=applyBattleToStoryState();const outcome=battle.result||'cancel';closeOverlay(false);resolve({outcome,state,battle:{...battle}});
+  if(!storyResolver)return;const resolve=storyResolver;storyResolver=null;const state=applyBattleToStoryState();const outcome=battle.result||'cancel';closeOverlay(false);resolve({outcome,state,battle:{...battle},events:battle.progressEvents||[]});
 }
 
 function handleAction(action){
   if(!battle||battle.mode==='enemy')return;
-  if(action==='knife')return actKnife();if(action==='dodge')return actDodge();if(action==='pigeon')return actPigeon();if(action==='sunset')return actSunset();
+  if(action==='knife')return actKnife();if(action==='dodge')return actDodge();if(action==='heal')return actHeal();if(action==='pigeon')return actPigeon();if(action==='sunset')return actSunset();
   if(action==='items'){battle.mode='items';return renderBattle()}if(action==='items-back'){battle.mode='actions';return renderBattle()}
   if(action.startsWith('item-'))return actItem(action.slice(5));
   if(action==='restart'){battle=freshBattle();return renderBattle()}if(action==='close')return closeBattleTest();if(action==='story-continue')return finishStoryBattle();
@@ -277,7 +282,7 @@ function makeOverlay(){
       <div class="battle-figure" aria-hidden="true"><img class="hidden" data-enemy-art alt=""><span data-enemy-placeholder>?</span></div>
       <div class="battle-impact" data-impact></div>
       <div class="battle-bottom-stats">
-        <div class="battle-hero-compact" data-hero-card><b>ВИ</b><span data-hero-hp>❤️ 100%</span><span data-energy>⚡ 100%</span></div>
+        <div class="battle-hero-compact" data-hero-card><img src="./hero-face.png" alt="Герой"><div class="battle-hero-copy"><b>ГЕРОЙ</b><small data-hero-level>РІВ. 1</small></div><span data-hero-hp>❤️ 100%</span><span data-energy>⚡ 100%</span></div>
         <div class="battle-pigeon-compact" data-pigeon-card><img src="./pigeon_serious.png" alt="Євпапій"><div><b>ЄВПАПІЙ</b><span data-pigeon-hp>❤️ 100%</span><small><span data-pigeon-state>РІВ. 1</span><i data-pigeon-real-hp>50/50</i></small></div></div>
       </div>
     </div>
