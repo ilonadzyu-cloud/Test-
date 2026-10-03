@@ -1,5 +1,5 @@
-// v0.8.7 – visual shell + isolated battle test hook.
-import {installBattleTest} from './battle.js?v=087';
+// v0.8.8 – visual shell + isolated battle test hook.
+import {installBattleTest} from './battle.js?v=088';
 
 const groups085 = {
   hero: {
@@ -160,13 +160,13 @@ function buildGroupedMenu085(){
   sync();
 }
 
-function stampVersion087(){
-  document.querySelectorAll('.version,.howto-version,.game-name span').forEach(el=>el.textContent='v0.8.7');
+function stampVersion088(){
+  document.querySelectorAll('.version,.howto-version,.game-name span').forEach(el=>el.textContent='v0.8.8');
 }
 
 function boot085(){
   document.body.classList.add('ui-v085');
-  stampVersion087();
+  stampVersion088();
   buildStart085();
   buildGroupedMenu085();
   installBattleTest();
