@@ -5,6 +5,7 @@ const groups085 = {
     label: 'Герой',
     tabs: [
       ['needs','Потреби'],
+      ['sleep','Сон'],
       ['states','Стани'],
       ['stats','Характеристики']
     ]

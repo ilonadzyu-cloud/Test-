@@ -1,6 +1,6 @@
 import {STAT_KEYS,STAT_LABELS,STAT_DESCRIPTIONS} from './config.js?v=083';
-import {STATUS_DEFS,CLOTHES,ITEM_DEFS} from './data.js?v=083';
-import {createInitialState,normalizeState,formatTime,threatInfo,thermal,equipmentTotals,equip,statModifiers,effectiveStat,itemCount,assignQuickSlot,useItem,executeAction,previewAction,addItem} from './engine.js?v=083';
+import {STATUS_DEFS,CLOTHES,ITEM_DEFS} from './data.js?v=086';
+import {createInitialState,normalizeState,formatTime,threatInfo,thermal,equipmentTotals,equip,statModifiers,effectiveStat,itemCount,assignQuickSlot,useItem,executeAction,previewAction,addItem} from './engine.js?v=086';
 import {listRuns,loadRun,saveRun,clearRun,saveManual,loadManual,listManual,emergencySaveRun,storageCapabilities} from './storage.js?v=083';
 import {audioManager} from './audio.js?v=071';
 import {getChapter1Scene,CHAPTER1_SCENES,resolveSceneValue} from './chapter1.js?v=083';
@@ -23,6 +23,7 @@ let noticeQueue=[];
 let noticeBusy=false;
 let persistChain=Promise.resolve();
 let sfxTimers=[];
+let lastSleepMessage='';
 const categories=['all','Їжа та напої','Ліки','Зброя','Якась хуйня'];
 
 const statFlavor={
@@ -281,7 +282,7 @@ function closeMenu(){
 function renderMenu(){
   document.querySelectorAll('#menuTabs [data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===currentTab));
   const tm=formatTime(G.clock.totalMinutes);$('#menuMeta').textContent=`Проходження ${G.runId} · День ${tm.day}, ${tm.time}`;
-  ({states:renderStates,stats:renderStats,needs:renderNeeds,inventory:renderInventory,clothes:renderClothes,companions:renderCompanions,relations:renderRelations,map:renderMap,shop:renderShop,settings:renderSettings}[currentTab]||renderInventory)();
+  ({states:renderStates,stats:renderStats,needs:renderNeeds,sleep:renderSleep,inventory:renderInventory,clothes:renderClothes,companions:renderCompanions,relations:renderRelations,map:renderMap,shop:renderShop,settings:renderSettings}[currentTab]||renderInventory)();
 }
 
 function renderInventory(){
@@ -371,6 +372,64 @@ function needFlavor(kind,v){
 function renderNeeds(){
   const rows=[['Здоровʼя',G.health,'health'],['Ситість',G.needs.satiety,'hunger'],['Вода',G.needs.water,'thirst'],['Бадьорість',G.needs.energy,'fatigue']];
   $('#menuContent').innerHTML=`<div class="section-title"><h2>Потреби</h2></div><div class="info-card">Чим більше відсотків, тим краще. Плюс – добре. Мінус – хуйово. На 40% і нижче вже починаються стани, на 20% – сильні дебафи, 5% і нижче – критично. Їжа відновлює ситість, напої – воду, перепочинок – бадьорість, аптечка – здоровʼя. Брудний одяг можна випрати або змінити. При 0% здоровʼя гра завершується.</div><div class="needs-list">${rows.map(([label,value,kind])=>`<article class="need-card"><div class="need-row"><b>${label}</b><b>${Math.round(value)}%</b></div><div class="need-bar ${needTone(value)}"><span style="width:${Math.max(0,Math.min(100,value))}%"></span></div><div class="stat-flavor">${esc(needFlavor(kind,value))}</div></article>`).join('')}</div>`;
+}
+
+
+function sleepPlace(){
+  const env=String(G.world?.environment||'outdoors');
+  const loc=String(G.world?.location||'').toLocaleLowerCase('uk-UA');
+  if(env==='barn'||/хлів/.test(loc))return{key:'barn',label:'Хлів',activity:'sleep_barn'};
+  if(env==='indoors')return{key:'house',label:'Хатина',activity:'sleep_house'};
+  return{key:'outdoors',label:'Вулиця',activity:'sleep_outdoors'};
+}
+
+function sleepMessage(place,hours,cow){
+  if(cow)return'Вас облизала корова';
+  if(place==='house'){
+    if(hours===8)return'Вісім годин без хуйні. Новий рекорд.';
+    return'Вперше за сьогодні ви лежите і ніхто не говорить з вами. Навіть Євпапій. Підозріло.';
+  }
+  if(place==='barn')return'Пахне сіном і гімно';
+  return'Спалось хуйово. Все';
+}
+
+async function doSleep(hours){
+  const place=sleepPlace();
+  const cow=place.key==='barn'&&Math.random()<.05;
+  const effects=cow?[{type:'statusAdd',id:'cowLicked'}]:[];
+  const r=executeAction(G,{
+    id:`sleep_${place.key}_${hours}h`,
+    minutes:hours*60,
+    activity:place.activity,
+    effects
+  });
+  G=r.state;
+  notifyEvents(r.events);
+  lastSleepMessage=sleepMessage(place.key,hours,cow);
+  await persist();
+  await renderGame();
+  toast('ВИ ПОСПАЛИ',lastSleepMessage);
+}
+
+function renderSleep(){
+  const place=sleepPlace();
+  const options=[1,4,8];
+  const root=$('#menuContent');
+  const cards=options.map(hours=>{
+    const action={id:'sleep_preview',minutes:hours*60,activity:place.activity,effects:[]};
+    const preview=previewAction(G,action).filter(x=>/^(Бадьорість|Вода|Ситість|Здоровʼя)/.test(x));
+    const effects=preview.map(x=>`<span class="sleep-effect ${x.includes('+')?'plus':'minus'}">${esc(x)}</span>`).join('');
+    return `<button class="sleep-card" type="button" data-sleep-hours="${hours}">
+      <b>${hours===1?'Подрімати 1 годину':hours===4?'Поспати 4 години':'Виспатися 8 годин'}</b>
+      <small>${effects||'Час пройде.'}</small>
+    </button>`;
+  }).join('');
+  root.innerHTML=`<div class="section-title"><h2>Сон</h2><span>${esc(place.label)}</span></div>
+    <div class="info-card">Спати можна коли хочете. Наскільки це хороша ідея, залежить від місця й погоди.</div>
+    ${lastSleepMessage?`<div class="sleep-result">${esc(lastSleepMessage)}</div>`:''}
+    <div class="sleep-grid">${cards}</div>
+    ${place.key==='barn'?'<div class="sleep-note">У хліві іноді може статись дещо рідкісне.</div>':''}`;
+  root.querySelectorAll('[data-sleep-hours]').forEach(b=>b.onclick=()=>doSleep(Number(b.dataset.sleepHours)));
 }
 
 function renderStates(){

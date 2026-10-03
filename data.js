@@ -34,6 +34,12 @@ export const STATUS_DEFS={
   angry:{name:'ЗЛИЙ',portrait:'./portrait_angry.png',blurb:'Настрій когось вʼєбати.',mods:{strength:2,pofigism:1,charisma:-2},remove:'заспокоїтись.'},
   suspicious:{name:'СОБАКА-ПОДОЗРЄВАКА',portrait:'./portrait_suspicious.png',blurb:'Шось тут не так.',mods:{attention:2,charisma:-1},remove:'коли відпустить.'},
   skunk:{name:'ДИКИЙ СКУНС',portrait:'./portrait_tired.png',blurb:'Помитись було б непогано.',mods:{pofigism:1,charisma:-3},remove:'нормально помитись.'},
+  cowLicked:{
+    name:'ВАС ОБЛИЗАЛА КОРОВА',portrait:'./portrait_base.png',blurb:'',
+    mods:{strength:5,attention:5,agility:5,charisma:5,pofigism:5,ahui:5},
+    durationMinutes:60,
+    remove:'сам пройде через 1 ігрову годину.'
+  },
   tipsy:{name:'ПІД ГРАДУСОМ',portrait:'./portrait_base.png',blurb:'Ви під градусом.',mods:{pofigism:2,charisma:1,attention:-1,agility:-1},durationMinutes:90,remove:'90 ігрових хвилин після останньої горілки.'}
 };
 

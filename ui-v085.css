@@ -315,3 +315,15 @@ button{border-radius:14px 10px 15px 11px}
   .menu-primary button{font-size:.82rem}
   .start-actions{margin-top:41vh}
 }
+
+
+/* v0.8.6 – sleep */
+.sleep-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.sleep-card{min-width:0;min-height:106px;text-align:left;display:flex;flex-direction:column;justify-content:space-between;gap:10px;padding:14px;border-color:#3b503f;background:#15221a}
+.sleep-card b{font-size:.96rem;color:#efe6d2}
+.sleep-card small{display:flex;flex-wrap:wrap;gap:5px;color:var(--muted);line-height:1.35}
+.sleep-effect{display:inline-block;border:1px solid #314337;border-radius:999px;padding:3px 7px;font-size:.74rem}
+.sleep-effect.plus{color:#72bd7a}.sleep-effect.minus{color:#df716a}
+.sleep-result{margin:0 0 12px;padding:13px 14px;border:1px solid #53694f;border-radius:14px 10px 15px 11px;background:#1b2a1d;color:#f0e6cf;font-weight:800}
+.sleep-note{margin-top:12px;color:var(--muted);font-size:.82rem}
+@media(max-width:760px){.sleep-grid{grid-template-columns:1fr}.sleep-card{min-height:82px}}
