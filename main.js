@@ -1,14 +1,16 @@
-import {STAT_KEYS,STAT_LABELS,STAT_DESCRIPTIONS} from './config.js?v=083';
-import {STATUS_DEFS,CLOTHES,ITEM_DEFS} from './data.js?v=086';
-import {createInitialState,normalizeState,formatTime,threatInfo,thermal,equipmentTotals,equip,statModifiers,effectiveStat,itemCount,assignQuickSlot,useItem,executeAction,previewAction,addItem} from './engine.js?v=086';
+import {STAT_KEYS,STAT_LABELS,STAT_DESCRIPTIONS} from './config.js?v=090';
+import {STATUS_DEFS,CLOTHES,ITEM_DEFS} from './data.js?v=090';
+import {createInitialState,normalizeState,formatTime,threatInfo,thermal,equipmentTotals,equip,statModifiers,effectiveStat,itemCount,assignQuickSlot,useItem,executeAction,previewAction,addItem} from './engine.js?v=090';
 import {listRuns,loadRun,saveRun,clearRun,saveManual,loadManual,listManual,emergencySaveRun,storageCapabilities} from './storage.js?v=083';
 import {audioManager} from './audio.js?v=071';
 import {getChapter1Scene,CHAPTER1_SCENES,resolveSceneValue} from './chapter1.js?v=083';
-import {getChapter2Scene,CHAPTER2_SCENES} from './chapter2.js?v=083';
+import {getChapter2Scene,CHAPTER2_SCENES} from './chapter2.js?v=090';
+import {getChapter3Scene,CHAPTER3_SCENES} from './chapter3.js?v=090';
+import {openStoryBattle} from './battle.js?v=090';
 
 function getGameScene(state){
   const id=state?.story?.sceneId||state?.scene||'intro';
-  return CHAPTER2_SCENES[id]||CHAPTER1_SCENES[id]||getChapter1Scene(state);
+  return CHAPTER3_SCENES[id]||CHAPTER2_SCENES[id]||CHAPTER1_SCENES[id]||getChapter1Scene(state);
 }
 
 const $=s=>document.querySelector(s);
@@ -223,6 +225,17 @@ async function choose(choice){
   await audioManager.unlock();
   const r=executeAction(G,{id:choice.id,minutes:choice.minutes||0,activity:choice.activity||'light',effects:choice.effects||[],hiddenEffects:choice.hiddenEffects||[]});
   G=r.state;notifyEvents(r.events);
+
+  if(choice.battle){
+    await persist();
+    const result=await openStoryBattle(G,choice.battle);
+    if(result?.state)G=normalizeState(result.state);
+    const next=result?.outcome==='knockout'?choice.battle.nextOnKnockout:result?.outcome==='lose'?choice.battle.nextOnLose:choice.battle.nextOnWin;
+    if(next){G.story.sceneId=next;G.scene=next}
+    await persist();await renderGame();window.scrollTo({top:0,behavior:'instant'});
+    return;
+  }
+
   if(choice.next){G.story.sceneId=choice.next;G.scene=choice.next}
   await persist();await renderGame();window.scrollTo({top:0,behavior:'instant'});
 }

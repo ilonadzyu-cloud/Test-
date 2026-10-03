@@ -1,5 +1,5 @@
-import {STAT_KEYS} from './config.js?v=083';
-import {STATUS_DEFS,CLOTHES,ITEM_DEFS} from './data.js?v=086';
+import {STAT_KEYS} from './config.js?v=090';
+import {STATUS_DEFS,CLOTHES,ITEM_DEFS} from './data.js?v=090';
 export const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 export const clone=x=>JSON.parse(JSON.stringify(x));
 
@@ -12,8 +12,8 @@ export function createInitialState(runId=1){return {
  inventory:[{id:'vodka',qty:1},{id:'knife',qty:1},{id:'salo',qty:1}],importantItems:[],quickSlots:[null,null,null],
  ownedClothes:['modern_shirt','modern_jacket','modern_pants','modern_boots'],
  equipment:{body:'modern_shirt',outer:'modern_jacket',legs:'modern_pants',feet:'modern_boots'},
- companions:{evpapiy:{name:'Євпапій',known:false,active:false,portrait:'./pigeon_base.png',state:'Не з вами',facts:[]}},
- relationships:{evpapiy:{name:'Євпапій',known:false,values:{trust:2,offense:4,greed:8,bullshit:6},discoveredParams:[]},galina:{name:'Баба Галя',known:false,values:{trust:5,offense:0},discoveredParams:[]}},
+ companions:{evpapiy:{name:'Євпапій',known:false,active:false,portrait:'./pigeon_base.png',state:'Не з вами',facts:[],level:1,hp:50,maxHp:50,skipBattles:0,offended:false}},
+ relationships:{evpapiy:{name:'Євпапій',known:false,values:{trust:2,offense:4,greed:8,bullshit:6},discoveredParams:[]},galina:{name:'Баба Галя',known:false,values:{trust:5,offense:0},discoveredParams:[]},creature:{name:'Створіння',known:false,values:{attitude:0},discoveredParams:[]}},
  memories:{evpapiy:{},galina:{}},money:0,
  flags:{mapUnlocked:false,shopUnlocked:false,metPigeon:false,knowsPigeonName:false,doneWhere:false,donePuddle:false,doneWhy:false,watchGalina:false,localClothes:false,modernJacketPooped:false,initialStatusPopupShown:false,sweptYard:false,choppedWood:false,suspiciousDeal:false},
  hazards:{dynamic:{}},audit:[],world:{weather:{label:'Хмарно',icon:'☁️',tempC:16,wind:1,rain:0},location:'біля сільської хатини',environment:'outdoors'}
@@ -25,8 +25,9 @@ export function normalizeState(raw){
  // Міграція з v0.7.1: фінальний екран першої глави тепер є стартом другої.
  if(s.scene==='chapter1Outro'||s.scene==='chapter1End')s.scene='ch2_intro';
  s.story.sceneId=s.scene;
- const detectedChapter=String(s.scene).startsWith('ch2_')?2:Number(s.story.chapter||s.chapter||1);
- s.chapter=detectedChapter>=2?2:1;s.story.chapter=s.chapter;
+ const sceneId=String(s.scene||'');
+ const detectedChapter=sceneId.startsWith('ch3_')?3:sceneId.startsWith('ch2_')?2:Number(s.story.chapter||s.chapter||1);
+ s.chapter=detectedChapter>=3?3:detectedChapter>=2?2:1;s.story.chapter=s.chapter;
  const old=s.stats||{};s.stats=defaultStats();
  for(const k of STAT_KEYS){
    const v=old[k];
@@ -44,7 +45,7 @@ export function normalizeState(raw){
  const modernSet=['modern_shirt','modern_jacket','modern_pants','modern_boots'];
  const localSet=['local_shirt','local_vest','local_pants','boots'];
  const localMilestones=new Set(['galinaChanged','galinaMurderScene','galinaVictim','galinaCalm','galinaGarlic','galinaPotion','galinaHolyWater','chapter1Outro','chapter1End']);
- const reachedLocalClothes=String(s.scene||'').startsWith('ch2_')||localMilestones.has(s.scene)||(s.story.entered||[]).some(id=>localMilestones.has(id));
+ const reachedLocalClothes=/^ch[23]_/.test(String(s.scene||''))||localMilestones.has(s.scene)||(s.story.entered||[]).some(id=>localMilestones.has(id));
  s.flags.localClothes=Boolean(reachedLocalClothes);
  const allowed=new Set(reachedLocalClothes?[...modernSet,...localSet]:modernSet);
  const migrated=(Array.isArray(s.ownedClothes)?s.ownedClothes:base.ownedClothes).map(id=>aliases[id]||id).filter(id=>CLOTHES[id]&&allowed.has(id));
@@ -56,7 +57,16 @@ export function normalizeState(raw){
    const mapped=aliases[s.equipment?.[slot]]||s.equipment?.[slot];
    s.equipment[slot]=(mapped&&allowed.has(mapped)&&CLOTHES[mapped])?mapped:defaults[slot];
  }
- s.companions={...base.companions,...(s.companions||{})};s.relationships={...base.relationships,...(s.relationships||{})};s.memories={...base.memories,...(s.memories||{})};s.hazards={...base.hazards,...(s.hazards||{}),dynamic:{...(s.hazards?.dynamic||{})}};s.world={...base.world,...(s.world||{}),weather:{...base.world.weather,...(s.world?.weather||{})}};
+ s.companions={...base.companions,...(s.companions||{})};
+ const oldEvp=s.companions.evpapiy||{};s.companions.evpapiy={...base.companions.evpapiy,...oldEvp};
+ s.companions.evpapiy.level=Math.max(1,Math.floor(Number(s.companions.evpapiy.level||1)));
+ s.companions.evpapiy.maxHp=50+(s.companions.evpapiy.level-1)*10;
+ s.companions.evpapiy.hp=clamp(Number(s.companions.evpapiy.hp??s.companions.evpapiy.maxHp),0,s.companions.evpapiy.maxHp);
+ s.companions.evpapiy.skipBattles=Math.max(0,Math.floor(Number(s.companions.evpapiy.skipBattles||0)));
+ s.companions.evpapiy.offended=Boolean(s.companions.evpapiy.offended);
+ s.relationships={...base.relationships,...(s.relationships||{})};
+ for(const id of Object.keys(base.relationships))s.relationships[id]={...base.relationships[id],...(s.relationships[id]||{}),values:{...base.relationships[id].values,...(s.relationships[id]?.values||{})},discoveredParams:Array.isArray(s.relationships[id]?.discoveredParams)?s.relationships[id].discoveredParams:[]};
+ s.memories={...base.memories,...(s.memories||{})};s.hazards={...base.hazards,...(s.hazards||{}),dynamic:{...(s.hazards?.dynamic||{})}};s.world={...base.world,...(s.world||{}),weather:{...base.world.weather,...(s.world?.weather||{})}};
  clearInvalidQuickSlots(s);return s
 }
 export function formatTime(total){const day=Math.floor(total/1440)+1,m=((total%1440)+1440)%1440,h=Math.floor(m/60);return{day,time:String(h).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}}

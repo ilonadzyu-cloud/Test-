@@ -1,5 +1,5 @@
-import {ITEM_DEFS} from './data.js?v=083';
-import {effectiveStat} from './engine.js?v=083';
+import {ITEM_DEFS} from './data.js?v=090';
+import {effectiveStat} from './engine.js?v=090';
 
 const img=n=>`./${n}`;
 const hero=(name='ch2_hero_local.png',position='hero')=>({role:'hero',src:img(name),position});
@@ -404,8 +404,8 @@ export const CHAPTER2_SCENES={
     ...shed,id:'ch2_end',caption:'кінець глави 2',actors:[hero('ch2_hero_scared.png'),hood()],
     onEnter:[{type:'flag',key:'chapter2Complete',value:true}],
     text:`Глава 2 завершена.`,
-    notice:{title:'ПРОДОВЖЕННЯ БУДЕ',body:'Усе, що ви встигли наробити, збережено.'},
-    end:true,choices:[]
+    notice:{title:'ГЛАВА 3 ВІДКРИТА',body:'Усе, що ви встигли наробити, збережено.'},
+    choices:[{id:'ch2_to_ch3',label:'ГЛАВА 3. КРАЩЕ СЦЯТИ В ТУАЛЕТІ',next:'ch3_intro'}]
   }
 };
 
