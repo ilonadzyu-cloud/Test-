@@ -327,3 +327,20 @@ button{border-radius:14px 10px 15px 11px}
 .sleep-result{margin:0 0 12px;padding:13px 14px;border:1px solid #53694f;border-radius:14px 10px 15px 11px;background:#1b2a1d;color:#f0e6cf;font-weight:800}
 .sleep-note{margin-top:12px;color:var(--muted);font-size:.82rem}
 @media(max-width:760px){.sleep-grid{grid-template-columns:1fr}.sleep-card{min-height:82px}}
+
+
+/* v0.9.1 – chapters + cleaner stage composition */
+.actor.face-left{transform:scaleX(-1)}
+.chapter-grid{grid-column:1/-1;display:grid;gap:10px;margin-top:14px}
+.chapter-card{display:grid;grid-template-columns:1fr auto;align-items:center;gap:14px;padding:14px;border:1px solid #3b4e3f;border-radius:16px 12px 17px 11px;background:#142019;text-align:left}
+.chapter-card>div:first-child{display:grid;gap:4px}
+.chapter-card b{color:#efe6d2}
+.chapter-card span{min-height:1em;color:#aaa294;font-size:.78rem}
+.chapter-card-actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.chapter-card-actions button{min-height:40px;padding:8px 11px}
+.chapter-card-actions button:disabled{opacity:.35}
+@media(max-width:520px){
+  .chapter-card{grid-template-columns:1fr}
+  .chapter-card-actions{justify-content:stretch}
+  .chapter-card-actions button{flex:1}
+}

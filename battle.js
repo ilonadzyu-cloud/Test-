@@ -1,5 +1,5 @@
-// v0.9.0 – combat test + first story battle.
-import {createInitialState,normalizeState,effectiveStat,equipmentTotals,itemCount,removeItem,clone} from './engine.js?v=090';
+// v0.9.1 – combat test + first story battle.
+import {createInitialState,normalizeState,effectiveStat,equipmentTotals,itemCount,removeItem,clone} from './engine.js?v=091';
 import {STATUS_DEFS} from './data.js?v=090';
 import {loadRun} from './storage.js?v=083';
 
@@ -33,10 +33,10 @@ const THROWABLES={
 };
 
 function ensureBattleCss(){
-  if(document.querySelector('link[data-battle-css="090"]'))return;
+  if(document.querySelector('link[data-battle-css="091"]'))return;
   document.querySelector('link[data-battle-css]')?.remove();
   const link=document.createElement('link');
-  link.rel='stylesheet';link.href='./battle.css?v=090';link.dataset.battleCss='090';document.head.appendChild(link);
+  link.rel='stylesheet';link.href='./battle.css?v=091';link.dataset.battleCss='091';document.head.appendChild(link);
 }
 
 function currentRunId(){const meta=document.querySelector('#menuMeta')?.textContent||'';const m=meta.match(/Проходження\s+(\d+)/i);return Math.max(1,Number(m?.[1]||1))}
@@ -205,7 +205,23 @@ function resultHtml(){
 }
 
 function renderPigeonCard(){const card=overlay?.querySelector('[data-pigeon-card]');if(!card)return;const p=battle.pigeon,pct=p.available?Math.round(clamp(p.hp/p.maxHp*100,0,100)):0;card.classList.toggle('unavailable',!p.available);card.classList.toggle('recovering',p.recovering);card.querySelector('[data-pigeon-state]').textContent=p.recovering?'ЛІКУЄТЬСЯ':p.retreated?'ВИЙШОВ З БОЮ':`РІВ. ${p.level}`;card.querySelector('[data-pigeon-hp]').textContent=p.available?`❤️ ${pct}%`:'❤️ –';card.querySelector('[data-pigeon-real-hp]').textContent=p.available?`${p.hp}/${p.maxHp}`:''}
-function intentCopy(){if(battle.stunTurns>0)return{label:'ВОРОГ',text:'Валяється і поки нікуди не збирається.'};const intent=battle.enemyIntent||INTENTS.lunge;if(battle.phase==='enemy')return{label:'ВОРОГ АТАКУЄ',text:intent.hint};if(battle.phase==='impact')return{label:'УДАР',text:battle.lastImpact||''};return{label:'ВОНО ГОТУЄТЬСЯ',text:intent.hint}}
+function readableIntent(intent){
+  if(hasStatus('headInjury'))return'Через розбиту голову важко зрозуміти, шо воно робить.';
+  if(hasStatus('suspicious'))return intent.hint;
+  if(intent.id==='pigeon')return'Воно дивиться в бік Євпапія.';
+  if(intent.id==='heavy')return'Воно заносить руки над головою.';
+  if(intent.id==='grab')return'Воно тягне до вас руки.';
+  if(intent.id==='sweep')return'Воно розводить руки в сторони.';
+  return'Воно пригнулось і дивиться прямо на вас.';
+}
+function intentCopy(){
+  if(battle.stunTurns>0)return{label:'ВОРОГ',text:'Валяється і поки нікуди не збирається.'};
+  const intent=battle.enemyIntent||INTENTS.lunge;
+  if(battle.phase==='impact')return{label:'УДАР',text:battle.lastImpact||''};
+  const text=readableIntent(intent);
+  if(battle.phase==='enemy')return{label:'ВОРОГ АТАКУЄ',text};
+  return{label:hasStatus('suspicious')?'СОБАКА-ПОДОЗРЄВАКА':'ВОНО ГОТУЄТЬСЯ',text};
+}
 
 function renderBattle(){
   if(!overlay||!battle)return;

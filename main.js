@@ -1,12 +1,12 @@
-import {STAT_KEYS,STAT_LABELS,STAT_DESCRIPTIONS} from './config.js?v=090';
+import {STAT_KEYS,STAT_LABELS,STAT_DESCRIPTIONS} from './config.js?v=091';
 import {STATUS_DEFS,CLOTHES,ITEM_DEFS} from './data.js?v=090';
-import {createInitialState,normalizeState,formatTime,threatInfo,thermal,equipmentTotals,equip,statModifiers,effectiveStat,itemCount,assignQuickSlot,useItem,executeAction,previewAction,addItem} from './engine.js?v=090';
+import {createInitialState,normalizeState,formatTime,threatInfo,thermal,equipmentTotals,equip,statModifiers,effectiveStat,itemCount,assignQuickSlot,useItem,executeAction,previewAction,addItem} from './engine.js?v=091';
 import {listRuns,loadRun,saveRun,clearRun,saveManual,loadManual,listManual,emergencySaveRun,storageCapabilities} from './storage.js?v=083';
 import {audioManager} from './audio.js?v=071';
 import {getChapter1Scene,CHAPTER1_SCENES,resolveSceneValue} from './chapter1.js?v=083';
-import {getChapter2Scene,CHAPTER2_SCENES} from './chapter2.js?v=090';
-import {getChapter3Scene,CHAPTER3_SCENES} from './chapter3.js?v=090';
-import {openStoryBattle} from './battle.js?v=090';
+import {getChapter2Scene,CHAPTER2_SCENES} from './chapter2.js?v=091';
+import {getChapter3Scene,CHAPTER3_SCENES} from './chapter3.js?v=091';
+import {openStoryBattle} from './battle.js?v=091';
 
 function getGameScene(state){
   const id=state?.story?.sceneId||state?.scene||'intro';
@@ -108,6 +108,48 @@ function askConfirm({title='Почати заново?',text='',okText='Так, 
   });
 }
 
+const CHAPTER_META={
+  1:{title:'Глава 1',scene:'intro'},
+  2:{title:'Глава 2',scene:'ch2_intro'},
+  3:{title:'Глава 3',scene:'ch3_intro'}
+};
+
+function createChapterState(run,chapter){
+  const s=createInitialState(run);
+  s.flags.initialStatusPopupShown=true;
+  if(chapter===1)return normalizeState(s);
+
+  s.chapter=chapter;
+  s.story={chapter,sceneId:CHAPTER_META[chapter].scene,entered:[],finished:false};
+  s.scene=CHAPTER_META[chapter].scene;
+  s.flags.metPigeon=true;
+  s.flags.knowsPigeonName=true;
+  s.relationships.evpapiy.known=true;
+
+  if(chapter>=2){
+    s.flags.mapUnlocked=true;
+    s.flags.shopUnlocked=true;
+    s.flags.chapter1Complete=true;
+    s.companions.evpapiy.known=true;
+    s.companions.evpapiy.active=true;
+    s.companions.evpapiy.state='З вами';
+  }
+
+  if(chapter>=3){
+    s.flags.chapter2Started=true;
+    s.flags.chapter2Complete=true;
+    s.activeStatuses=['scared'];
+    s.discoveredStatuses=['hangover','scared'];
+    s.statusTimers={scared:s.clock.totalMinutes+20};
+    s.flags.scaredMigration091=true;
+    const salo=s.inventory.find(x=>x.id==='salo');
+    if(salo)salo.qty=Math.min(5,Number(salo.qty||0)+1);
+    else s.inventory.push({id:'salo',qty:1});
+    if(!s.inventory.some(x=>x.id==='water'))s.inventory.push({id:'water',qty:1});
+  }
+  return normalizeState(s);
+}
+
 async function renderStart(mode='home'){
   show('startScreen');
   document.body.classList.remove('menu-open');
@@ -120,17 +162,65 @@ async function renderStart(mode='home'){
   root.classList.toggle('hidden',mode==='home');
   actions.classList.toggle('hidden',mode!=='home');
 
-  if(mode!=='home'){
+  if(mode==='chapters'){
+    const head=document.createElement('div');
+    head.className='run-picker-head';
+    head.innerHTML=`<b>Глави</b><button class="ghost tiny" data-back-start>Назад</button>`;
+    root.appendChild(head);
+    const grid=document.createElement('div');
+    grid.className='chapter-grid';
+    for(const chapter of [1,2,3]){
+      const hasContinue=runs.some(r=>r.state&&normalizeState(r.state).chapter===chapter);
+      const card=document.createElement('article');
+      card.className='chapter-card';
+      card.innerHTML=`<div><b>${CHAPTER_META[chapter].title}</b><span>${chapter===3?'Продовження глави ще буде.':''}</span></div>
+        <div class="chapter-card-actions">
+          <button type="button" data-chapter-new="${chapter}">Нова гра</button>
+          <button type="button" data-chapter-continue="${chapter}" ${hasContinue?'':'disabled'}>Продовжити</button>
+        </div>`;
+      grid.appendChild(card);
+    }
+    root.appendChild(grid);
+    root.querySelector('[data-back-start]').onclick=()=>renderStart('home');
+    root.querySelectorAll('[data-chapter-new]').forEach(b=>b.onclick=()=>renderStart(`chapter-new-${b.dataset.chapterNew}`));
+    root.querySelectorAll('[data-chapter-continue]').forEach(b=>b.onclick=()=>renderStart(`chapter-continue-${b.dataset.chapterContinue}`));
+  }else if(mode.startsWith('chapter-new-')||mode.startsWith('chapter-continue-')){
+    const isNew=mode.startsWith('chapter-new-');
+    const chapter=Number(mode.split('-').pop());
+    const head=document.createElement('div');
+    head.className='run-picker-head';
+    head.innerHTML=`<b>${CHAPTER_META[chapter].title} · ${isNew?'Нова гра':'Продовжити'}</b><button class="ghost tiny" data-back-start>Назад</button>`;
+    root.appendChild(head);
+    let shown=0;
+    for(const r of runs){
+      const state=r.state?normalizeState(r.state):null;
+      if(!isNew&&(!state||state.chapter!==chapter))continue;
+      shown++;
+      const b=document.createElement('button');
+      b.className='run-card';
+      const tm=state?formatTime(state.clock.totalMinutes):null;
+      b.innerHTML=`<b>Проходження ${r.run}</b><span>${state?`Глава ${state.chapter} · ${tm.time}`:'Порожньо'}</span>`;
+      b.onclick=()=>isNew?startFromChapter(r.run,chapter):continueRun(r.run,state);
+      root.appendChild(b);
+    }
+    if(!shown){
+      const empty=document.createElement('div');
+      empty.className='empty-state';
+      empty.textContent='У цій главі поки нема активного сейву.';
+      root.appendChild(empty);
+    }
+    root.querySelector('[data-back-start]').onclick=()=>renderStart('chapters');
+  }else if(mode!=='home'){
     const head=document.createElement('div');
     head.className='run-picker-head';
     head.innerHTML=`<b>${mode==='new'?'Нове проходження':'Продовжити'}</b><button class="ghost tiny" data-back-start>Назад</button>`;
     root.appendChild(head);
     for(const r of runs){
-      const s=r.state?normalizeState(r.state):null,tm=s?formatTime(s.clock.totalMinutes):null;
+      const st=r.state?normalizeState(r.state):null,tm=st?formatTime(st.clock.totalMinutes):null;
       const b=document.createElement('button');
       b.className='run-card';
-      b.innerHTML=`<b>Проходження ${r.run}</b><span>${s?`Глава ${s.chapter} · ${tm.time}`:'Порожньо'}</span>`;
-      b.onclick=()=>mode==='new'?startNew(r.run):continueRun(r.run,s);
+      b.innerHTML=`<b>Проходження ${r.run}</b><span>${st?`Глава ${st.chapter} · ${tm.time}`:'Порожньо'}</span>`;
+      b.onclick=()=>mode==='new'?startNew(r.run):continueRun(r.run,st);
       root.appendChild(b);
     }
     root.querySelector('[data-back-start]').onclick=()=>renderStart('home');
@@ -140,6 +230,26 @@ async function renderStart(mode='home'){
   const storage=$('#storageStatus');
   if(cap.readBack){storage.textContent='';storage.classList.add('hidden')}
   else{storage.textContent='Є проблема зі збереженням у цьому браузері.';storage.classList.remove('hidden')}
+}
+
+async function startFromChapter(run,chapter){
+  const old=await loadRun(run);
+  if(old){
+    const ok=await askConfirm({title:`Стерти проходження ${run}?`,text:`Цей сейв буде видалено, і гра почнеться з ${CHAPTER_META[chapter].title.toLocaleLowerCase('uk-UA')}.`,okText:'Так, почати'});
+    if(!ok)return;
+  }
+  await clearRun(run);
+  G=createChapterState(run,chapter);
+  await saveRun(G);
+  if(chapter===1){
+    G.flags.initialStatusPopupShown=false;
+    await saveRun(G);
+    show('howToScreen');
+    return;
+  }
+  show('gameScreen');
+  await renderGame();
+  if(chapter===3)queueState('scared');
 }
 
 async function startNew(run){
@@ -563,6 +673,7 @@ async function renderSettings(){
 
 $('#newGameBtn').onclick=()=>renderStart('new');
 $('#continueBtn').onclick=()=>renderStart('continue');
+$('#chaptersBtn').onclick=()=>renderStart('chapters');
 $('#beginGameBtn').onclick=beginGame;
 $('#menuBtn').onclick=()=>openMenu('inventory');
 $('#closeMenuBtn').onclick=closeMenu;

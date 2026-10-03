@@ -1,4 +1,4 @@
-import {STAT_KEYS} from './config.js?v=090';
+import {STAT_KEYS} from './config.js?v=091';
 import {STATUS_DEFS,CLOTHES,ITEM_DEFS} from './data.js?v=090';
 export const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 export const clone=x=>JSON.parse(JSON.stringify(x));
@@ -8,14 +8,14 @@ export function createInitialState(runId=1){return {
  schemaVersion:10,runId,createdAt:Date.now(),updatedAt:Date.now(),lastAutosaveAt:null,
  chapter:1,scene:'intro',story:{chapter:1,sceneId:'intro',entered:[],finished:false},clock:{totalMinutes:400},
  health:100,needs:{satiety:75,water:42,energy:65},wetness:0,stats:defaultStats(),
- activeStatuses:['hangover'],discoveredStatuses:['hangover'],statusTimers:{},unlocks:{yebatorium:false},
+ activeStatuses:['hangover'],discoveredStatuses:['hangover'],statusTimers:{},unlocks:{yebatorium:false,sunsetContempt:false},
  inventory:[{id:'vodka',qty:1},{id:'knife',qty:1},{id:'salo',qty:1}],importantItems:[],quickSlots:[null,null,null],
  ownedClothes:['modern_shirt','modern_jacket','modern_pants','modern_boots'],
  equipment:{body:'modern_shirt',outer:'modern_jacket',legs:'modern_pants',feet:'modern_boots'},
  companions:{evpapiy:{name:'Євпапій',known:false,active:false,portrait:'./pigeon_base.png',state:'Не з вами',facts:[],level:1,hp:50,maxHp:50,skipBattles:0,offended:false}},
  relationships:{evpapiy:{name:'Євпапій',known:false,values:{trust:2,offense:4,greed:8,bullshit:6},discoveredParams:[]},galina:{name:'Баба Галя',known:false,values:{trust:5,offense:0},discoveredParams:[]},creature:{name:'Створіння',known:false,values:{attitude:0},discoveredParams:[]}},
  memories:{evpapiy:{},galina:{}},money:0,
- flags:{mapUnlocked:false,shopUnlocked:false,metPigeon:false,knowsPigeonName:false,doneWhere:false,donePuddle:false,doneWhy:false,watchGalina:false,localClothes:false,modernJacketPooped:false,initialStatusPopupShown:false,sweptYard:false,choppedWood:false,suspiciousDeal:false},
+ flags:{mapUnlocked:false,shopUnlocked:false,metPigeon:false,knowsPigeonName:false,doneWhere:false,donePuddle:false,doneWhy:false,watchGalina:false,localClothes:false,modernJacketPooped:false,initialStatusPopupShown:false,sweptYard:false,choppedWood:false,suspiciousDeal:false,evpapiySaloGivenCount:0,evpapiyEnemyConflictCount:0,scaredMigration091:false},
  hazards:{dynamic:{}},audit:[],world:{weather:{label:'Хмарно',icon:'☁️',tempC:16,wind:1,rain:0},location:'біля сільської хатини',environment:'outdoors'}
 }}
 export function normalizeState(raw){
@@ -41,6 +41,21 @@ export function normalizeState(raw){
    }
  }
  s.activeStatuses=Array.isArray(s.activeStatuses)?s.activeStatuses:[];s.discoveredStatuses=Array.isArray(s.discoveredStatuses)?s.discoveredStatuses:[];s.statusTimers={...(s.statusTimers||{})};s.inventory=Array.isArray(s.inventory)?s.inventory:[];s.quickSlots=Array.isArray(s.quickSlots)?s.quickSlots.slice(0,3):[null,null,null];while(s.quickSlots.length<3)s.quickSlots.push(null);
+ const entered=new Set(s.story.entered||[]);
+ const inferredSalo=(entered.has('wellSalo')?1:0)+(entered.has('ch2_salo')?1:0);
+ s.flags.evpapiySaloGivenCount=Math.max(Number(s.flags.evpapiySaloGivenCount||0),inferredSalo);
+ s.flags.evpapiyEnemyConflictCount=Math.max(Number(s.flags.evpapiyEnemyConflictCount||0),s.flags.evpapiyEnemyConflict?1:0);
+ if(s.flags.evpapiySaloGivenCount>=2&&s.flags.evpapiyEnemyConflictCount>=1)s.unlocks.sunsetContempt=true;
+ if(s.flags.creatureVodkaFriend||entered.has('ch3_vodka'))s.flags.creatureRescueAvailable=true;
+ if(sceneId.startsWith('ch3_'))s.flags.chapter3Complete=false;
+ const earlyCh3=new Set(['ch3_intro','ch3_obey','ch3_turn','ch3_call_pigeon','ch3_tell_off','ch3_creature','ch3_vodka','ch3_garlic','ch3_garlic_hit','ch3_ask_pigeon','ch3_run','ch3_pray']);
+ if(earlyCh3.has(sceneId)&&s.activeStatuses.includes('scared'))s.flags.scaredMigration091=true;
+ if(earlyCh3.has(sceneId)&&!s.flags.scaredMigration091&&!s.activeStatuses.includes('scared')){
+   s.activeStatuses.push('scared');
+   if(!s.discoveredStatuses.includes('scared'))s.discoveredStatuses.push('scared');
+   s.statusTimers.scared=s.clock.totalMinutes+20;
+   s.flags.scaredMigration091=true;
+ }
  const aliases={local_boots:'boots',local_waistcoat:'local_vest',modern_coat:'modern_jacket'};
  const modernSet=['modern_shirt','modern_jacket','modern_pants','modern_boots'];
  const localSet=['local_shirt','local_vest','local_pants','boots'];

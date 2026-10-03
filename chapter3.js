@@ -3,8 +3,9 @@ import {ITEM_DEFS} from './data.js?v=090';
 const img=n=>`./${n}`;
 const hero=(name='ch2_hero_scared.png',position='hero')=>({role:'hero',src:img(name),position});
 const pigeon=(name='pigeon_base.png',position='pigeon')=>({role:'pigeon',src:img(name),position});
-const hood=()=>({role:'npc',src:img('ch2_unknown_v2.png'),position:'npc'});
+const hood=()=>({role:'npc face-left',src:img('ch2_unknown_v2.png'),position:'npc'});
 const creature=(name='creature_base.png',position='npc')=>({role:'npc',src:img(name),position});
+const galina=()=>({role:'npc',src:img('galina_base.png'),position:'npc'});
 const shed={background:img('ch2_shed.jpg'),atmosphere:'village',chapter:3,world:[{type:'world',key:'environment',value:'outdoors'},{type:'world',key:'location',value:'біля сараю'}]};
 
 function itemCount(state,id){return(state.inventory||[]).filter(x=>x.id===id).reduce((n,x)=>n+Number(x.qty||0),0)}
@@ -49,7 +50,7 @@ export const CHAPTER3_SCENES={
   },
 
   ch3_turn:{
-    ...shed,id:'ch3_turn',caption:'ну канєшно',actors:[hero(),hood(),creature('creature_attack.png')],
+    ...shed,id:'ch3_turn',caption:'ну канєшно',actors:[hero(),hood()],
     onEnter:[{type:'stat',key:'ahui',value:1}],
     text:`Ви, канєшно, робите рівно те, що вам сказали не робити, і різко обертаєтесь.
 
@@ -71,7 +72,7 @@ export const CHAPTER3_SCENES={
   },
 
   ch3_call_pigeon:{
-    ...shed,id:'ch3_call_pigeon',caption:'євпапій',actors:[hero(),hood(),pigeon('pigeon_suspicious.png')],
+    ...shed,id:'ch3_call_pigeon',caption:'євпапій',actors:[hero(),pigeon('pigeon_suspicious.png','shoulder')],
     text:`– Євпапій…
 
 – Шо?
@@ -113,7 +114,7 @@ export const CHAPTER3_SCENES={
   },
 
   ch3_creature:{
-    ...shed,id:'ch3_creature',caption:'воно вилізло',actors:[hero(),hood(),creature('creature_base.png')],
+    ...shed,id:'ch3_creature',caption:'воно вилізло',actors:[hero(),creature('creature_base.png')],
     text:`З темряви повільно вилазить щось брудне, засмальцьоване, вонюче і потне. Вилитий дід Толік після триденного юбілею.`,
     choices:s=>{
       const out=[];
@@ -127,8 +128,8 @@ export const CHAPTER3_SCENES={
   },
 
   ch3_vodka:{
-    ...shed,id:'ch3_vodka',caption:'ну будеш?',actors:[hero(),hood(),creature('creature_vodka.png'),pigeon('pigeon_suspicious.png')],
-    onEnter:[{type:'itemRemove',id:'vodka',qty:1},{type:'relationship',person:'creature',key:'attitude',value:5},{type:'flag',key:'creatureVodkaFriend',value:true}],
+    ...shed,id:'ch3_vodka',caption:'ну будеш?',actors:[hero(),creature('creature_vodka.png')],
+    onEnter:[{type:'itemRemove',id:'vodka',qty:1},{type:'relationship',person:'creature',key:'attitude',value:5},{type:'flag',key:'creatureVodkaFriend',value:true},{type:'flag',key:'creatureRescueAvailable',value:true}],
     text:`Ви дістаєте горілку.
 
 – Будеш?
@@ -156,12 +157,11 @@ export const CHAPTER3_SCENES={
 – Тепер воно повернеться.
 
 – Заєбісь, – каже Євпапій.`,
-    notice:{title:'СТАВЛЕННЯ СТВОРІННЯ +5',body:''},
     choices:[{id:'ch3_vodka_pause',label:'Далі',next:'ch3_branch_pending'}]
   },
 
   ch3_garlic:{
-    ...shed,id:'ch3_garlic',caption:'народна медицина',actors:[hero(),hood(),creature('creature_garlic.png'),pigeon('pigeon_suspicious.png')],
+    ...shed,id:'ch3_garlic',caption:'народна медицина',actors:[hero(),creature('creature_garlic.png')],
     onEnter:[{type:'itemRemove',id:'garlic',qty:1},{type:'flag',key:'creatureGarlicUsed',value:true}],
     text:`– Ну давай, сука. Не підведи.
 
@@ -195,7 +195,7 @@ export const CHAPTER3_SCENES={
   },
 
   ch3_garlic_hit:{
-    ...shed,id:'ch3_garlic_hit',caption:'ну от',actors:[hero('ch2_hero_scared.png'),creature('creature_attack.png'),pigeon('pigeon_suspicious.png')],
+    ...shed,id:'ch3_garlic_hit',caption:'ну от',actors:[hero('ch2_hero_scared.png'),creature('creature_attack.png')],
     onEnter:[{type:'damage',amount:10,ignoreArmor:true}],
     text:`Створіння різко кидається вперед. Ви встигаєте відскочити, але воно чіпляє вас за плече й кидає на землю.
 
@@ -209,7 +209,7 @@ export const CHAPTER3_SCENES={
   },
 
   ch3_ask_pigeon:{
-    ...shed,id:'ch3_ask_pigeon',caption:'дуже корисна порада',actors:[hero(),creature('creature_attack.png'),pigeon('pigeon_talk.png')],
+    ...shed,id:'ch3_ask_pigeon',caption:'дуже корисна порада',actors:[hero(),pigeon('pigeon_talk.png','shoulder')],
     text:`– Євпапій, шо робити?!
 
 Голуб дивиться на створіння. Потім на вас. Потім знов на створіння.
@@ -235,7 +235,11 @@ export const CHAPTER3_SCENES={
 
 Ззаду щось різко влітає вам у потилицю.
 
-Темно.`,
+Темно.
+
+Євпапій:
+
+– Ну от. А я казав бігти. Правда, трохи раніше.`,
     notice:{title:'ЗДОРОВʼЯ 0 · ВИ ЗДОХЛИ',body:'Може, наступного разу не варто повертатись спиною до хуйні, про яку ви нічого не знаєте.'},
     choices:[{id:'ch3_dead_again',label:'…',next:'ch3_dead'}]
   },
@@ -245,13 +249,17 @@ export const CHAPTER3_SCENES={
     onEnter:[{type:'flag',key:'creatureKilledByPrayer',value:true}],
     text:`Ви заплющуєте очі й починаєте молитись.
 
-Постать нічого не каже. Шкрябання за дверима стає тихішим. Потім ще тихішим.
+Постать нічого не каже.
 
-І просто припиняється.
+Ще секунду чути, як створіння важко шарудить зовсім поруч. Потім звук віддаляється в бік сараю.
+
+Щось глухо вдаряється всередині.
+
+І все.
 
 Тиша.
 
-Ви відкриваєте очі.
+Ви відкриваєте очі. Створіння вже нема, а двері сараю знову закриті.
 
 – І шо?
 
@@ -299,8 +307,8 @@ export const CHAPTER3_SCENES={
   },
 
   ch3_galina:{
-    ...shed,id:'ch3_galina',caption:'баба галя',actors:[hero('hero_injured.png'),pigeon('pigeon_base.png')],
-    onEnter:[{type:'flag',key:'chapter3Complete',value:true}],
+    ...shed,id:'ch3_galina',caption:'баба галя',actors:[hero('hero_injured.png'),galina()],
+    onEnter:[{type:'flag',key:'chapter3PreviewEnd',value:true}],
     text:`Ви ще крутите ключ у руці, коли з-за рогу зʼявляється баба Галя. Дивиться на вас, на кров на потилиці, на сарай. Обличчя міняється буквально на секунду, але потім знов стає таким, ніби нічого особливого не сталося.
 
 – Баб Галь, шо то було?
@@ -318,7 +326,7 @@ export const CHAPTER3_SCENES={
 – Ходи вже.
 
 Євпапій плететься слідом, але в хату не заходить.`,
-    notice:{title:'КІНЕЦЬ ГЛАВИ 3',body:'Усе, що ви встигли наробити, збережено.'},
+    notice:{title:'ПРОДОВЖЕННЯ ТРЕТЬОЇ ГЛАВИ БУДЕ...',body:'Усе, що ви встигли наробити, збережено.'},
     end:true,choices:[]
   },
 
@@ -331,8 +339,8 @@ export const CHAPTER3_SCENES={
 
   ch3_branch_pending:{
     ...shed,id:'ch3_branch_pending',caption:'ця гілка ще росте',actors:[hero(),pigeon('pigeon_base.png')],
-    text:`Ця гілка поки закінчується тут.`,
-    notice:{title:'ПРОДОВЖЕННЯ ЦІЄЇ ГІЛКИ БУДЕ',body:'Наслідок збережено.'},
+    text:`На цьому місці третя глава поки обривається.`,
+    notice:{title:'ПРОДОВЖЕННЯ ТРЕТЬОЇ ГЛАВИ БУДЕ...',body:'Наслідок збережено.'},
     end:true,choices:[]
   }
 };

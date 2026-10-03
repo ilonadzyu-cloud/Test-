@@ -1,5 +1,5 @@
 import {ITEM_DEFS} from './data.js?v=090';
-import {effectiveStat} from './engine.js?v=090';
+import {effectiveStat} from './engine.js?v=091';
 
 const img=n=>`./${n}`;
 const hero=(name='ch2_hero_local.png',position='hero')=>({role:'hero',src:img(name),position});
