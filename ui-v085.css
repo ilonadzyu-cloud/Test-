@@ -41,17 +41,21 @@
   pointer-events:none;
   background:url('./start_window_glow.png?v=085') center center/cover no-repeat;
   opacity:.06;
-  animation:windowFlicker085 18s steps(1,end) infinite;
+  animation:windowFlicker085 23s steps(1,end) infinite;
 }
 @keyframes windowFlicker085{
-  0%,52%{opacity:.05}
-  53%{opacity:.20}
-  54%{opacity:.02}
-  55%,76%{opacity:.08}
-  77%{opacity:.28}
-  78%{opacity:.04}
-  79%{opacity:.17}
-  80%,100%{opacity:.06}
+  0%,39%{opacity:.055}
+  40%{opacity:.13}
+  40.6%{opacity:.035}
+  41.2%{opacity:.21}
+  42%,70%{opacity:.06}
+  71%{opacity:.105}
+  71.5%{opacity:.025}
+  72.1%{opacity:.17}
+  72.7%,91%{opacity:.055}
+  92%{opacity:.12}
+  92.4%{opacity:.045}
+  93%,100%{opacity:.06}
 }
 @media (prefers-reduced-motion: reduce){
   .start-screen::after{animation:none;opacity:.08}
@@ -345,7 +349,7 @@ button{border-radius:14px 10px 15px 11px}
   .chapter-card-actions button{flex:1}
 }
 
-/* v0.9.2 – progression, saves, about, death, test mode */
+/* v0.9.3 – progression, saves, about, death, test mode */
 .start-actions{grid-template-columns:1fr 1fr;margin-top:38vh}
 #continueBtn,#newGameBtn,#testModeBtn{grid-column:1/-1}
 #testModeBtn{min-height:44px;opacity:.78}
@@ -365,3 +369,6 @@ button{border-radius:14px 10px 15px 11px}
   .start-actions{margin-top:34vh;grid-template-columns:1fr 1fr;gap:7px}.start-actions .big{min-height:46px;font-size:.84rem}
   #continueBtn,#newGameBtn,#testModeBtn{grid-column:1/-1}.start-save-slots,.death-manual{grid-template-columns:1fr}.test-chapters{grid-template-columns:1fr 1fr 1fr}.progression-head{align-items:flex-start}.progression-head>div{flex-direction:column;gap:1px}
 }
+
+/* v0.9.3 – tester gate */
+#testModeBtn.hidden{display:none!important}

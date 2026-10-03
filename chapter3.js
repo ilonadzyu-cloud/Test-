@@ -1,4 +1,4 @@
-import {ITEM_DEFS} from './data.js?v=092';
+import {ITEM_DEFS} from './data.js?v=093';
 
 const img=n=>`./${n}`;
 const hero=(name='ch2_hero_scared.png',position='hero')=>({role:'hero',src:img(name),position});
@@ -72,7 +72,7 @@ export const CHAPTER3_SCENES={
   },
 
   ch3_call_pigeon:{
-    ...shed,id:'ch3_call_pigeon',caption:'євпапій',actors:[hero(),pigeon('pigeon_suspicious.png','shoulder')],
+    ...shed,id:'ch3_call_pigeon',caption:'євпапій',actors:[hero('ch2_hero_side.png'),pigeon('pigeon_suspicious.png','shoulder')],
     text:`– Євпапій…
 
 – Шо?
@@ -94,7 +94,7 @@ export const CHAPTER3_SCENES={
   },
 
   ch3_tell_off:{
-    ...shed,id:'ch3_tell_off',caption:'не командуй',actors:[hero(),hood()],
+    ...shed,id:'ch3_tell_off',caption:'не командуй',actors:[hero('ch2_hero_tired.png'),hood()],
     onEnter:[{type:'stat',key:'pofigism',value:1}],
     text:`– Та пусти мене нахуй.
 
@@ -128,7 +128,7 @@ export const CHAPTER3_SCENES={
   },
 
   ch3_vodka:{
-    ...shed,id:'ch3_vodka',caption:'ну будеш?',actors:[hero(),creature('creature_vodka.png')],
+    ...shed,id:'ch3_vodka',caption:'ну будеш?',actors:[hero('ch2_hero_side.png'),creature('creature_vodka.png')],
     onEnter:[{type:'itemRemove',id:'vodka',qty:1},{type:'relationship',person:'creature',key:'attitude',value:5},{type:'flag',key:'creatureVodkaFriend',value:true},{type:'flag',key:'creatureRescueAvailable',value:true}],
     text:`Ви дістаєте горілку.
 
@@ -161,7 +161,7 @@ export const CHAPTER3_SCENES={
   },
 
   ch3_garlic:{
-    ...shed,id:'ch3_garlic',caption:'народна медицина',actors:[hero(),creature('creature_garlic.png')],
+    ...shed,id:'ch3_garlic',caption:'народна медицина',actors:[hero('ch2_hero_side.png'),creature('creature_garlic.png')],
     onEnter:[{type:'itemRemove',id:'garlic',qty:1},{type:'flag',key:'creatureGarlicUsed',value:true}],
     text:`– Ну давай, сука. Не підведи.
 
@@ -209,7 +209,7 @@ export const CHAPTER3_SCENES={
   },
 
   ch3_ask_pigeon:{
-    ...shed,id:'ch3_ask_pigeon',caption:'дуже корисна порада',actors:[hero(),pigeon('pigeon_talk.png','shoulder')],
+    ...shed,id:'ch3_ask_pigeon',caption:'дуже корисна порада',actors:[hero('ch2_hero_scared.png'),pigeon('pigeon_talk.png','shoulder')],
     text:`– Євпапій, шо робити?!
 
 Голуб дивиться на створіння. Потім на вас. Потім знов на створіння.
@@ -225,7 +225,7 @@ export const CHAPTER3_SCENES={
   },
 
   ch3_run:{
-    ...shed,id:'ch3_run',caption:'погана ідея',actors:[hero(),creature('creature_attack.png')],
+    ...shed,id:'ch3_run',caption:'погана ідея',actors:[hero('ch2_hero_scared.png'),creature('creature_attack.png')],
     onEnter:[{type:'health',value:-100},{type:'flag',key:'diedRunningFromShed',value:true}],
     text:`Ви вирішуєте, що з вас досить.
 
@@ -245,7 +245,7 @@ export const CHAPTER3_SCENES={
   },
 
   ch3_pray:{
-    ...shed,id:'ch3_pray',caption:'молитва',actors:[hero(),hood()],
+    ...shed,id:'ch3_pray',caption:'молитва',actors:[hero('ch2_hero_scared.png'),hood()],
     onEnter:[{type:'flag',key:'creatureKilledByPrayer',value:true}],
     text:`Ви заплющуєте очі й починаєте молитись.
 

@@ -6,13 +6,13 @@
   <meta name="theme-color" content="#0b100d">
   <title>Десь не там</title>
   <link rel="stylesheet" href="./styles.css?v=084">
-  <link rel="stylesheet" href="./ui-v085.css?v=092">
+  <link rel="stylesheet" href="./ui-v085.css?v=093">
 </head>
 <body>
 <main id="app">
   <section id="startScreen" class="screen start-screen">
     <div class="start-card">
-      <div class="version">v0.9.2</div>
+      <div class="version">v0.9.3</div>
       <h1>ДЕСЬ НЕ ТАМ</h1>
       <p class="subtitle">текстова виживалка з комедією, крінжем і хорором</p>
       <div id="startActions" class="start-actions">
@@ -21,7 +21,7 @@
         <button id="chaptersBtn" class="big">Глави</button>
         <button id="savesBtn" class="big">Збереження</button>
         <button id="aboutBtn" class="big">Про гру</button>
-        <button id="testModeBtn" class="big ghost">Тест</button>
+        <button id="testModeBtn" class="big ghost hidden" aria-hidden="true">Тест</button>
       </div>
       <div id="runPicker" class="run-picker hidden"></div>
       <div id="storageStatus" class="storage-status small hidden"></div>
@@ -31,7 +31,7 @@
   <section id="howToScreen" class="screen howto-screen hidden">
     <div class="howto-wrap">
       <div class="howto-head">
-        <div class="howto-version">v0.9.2</div>
+        <div class="howto-version">v0.9.3</div>
         <h1 class="howto-title">ДЕСЬ НЕ ТАМ</h1>
         <p class="subtitle">текстова виживалка з комедією, крінжем і хорором</p>
         <div class="howto-kicker">ПЕРЕД ТИМ, ЯК ЛІЗТИ В ЦЕ СЕЛО</div>
@@ -39,27 +39,14 @@
 
       <div class="howto-grid preview-grid">
         <article class="howto-card howto-lead preview-lead">
-          <h2>Кожне ваше рішення має значення.</h2>
-          <p>Вибір може змінити стан героя, вплинути на ставлення до вас або вилізти боком значно пізніше. Не все корисне виявиться добрим, а не кожна хуйова ідея закінчиться хуйово.</p>
-          <p>Стани й характеристики можуть відкривати нові варіанти в діалогах і діях.</p>
-          <p>Будьте обережні – не все те, чим здається.</p>
+          <h2>Ви прокинулись хуй зна де.</h2>
+          <p>Телефона нема. Нормального плану нема. Зате десь поруч уже шариться Євпапій.</p>
+          <p>Він вже тут. Значить, добром це не закінчиться.</p>
         </article>
-        <article class="howto-card">
-          <h2>Стани</h2>
-          <p>Стани змінюють характеристики героя. Деякі можна зняти. Деякі самі пройдуть. А деякі будуть з вами, поки ви не розгребете ту хуйню, яку наробили.</p>
-        </article>
-        <article class="howto-card">
-          <h2>Характеристики</h2>
-          <p>За досвід росте загальний рівень героя. Кожен новий рівень дає очко прокачки, а куди його вкласти – вирішуєте ви.</p>
-        </article>
-        <article class="howto-card">
-          <h2>Інвентар і виживання</h2>
-          <p>Їжа, вода, бадьорість, здоровʼя, мокрий одяг і речі в кишенях – це не декор. Те, що ви взяли, зʼїли, вдягнули або лишили лежати, може знадобитися далеко не одразу.</p>
-        </article>
-        <article class="howto-card">
-          <h2>Памʼять персонажів</h2>
-          <p>Персонажі пам’ятатимуть, що ви перед ними витворяли. Не кожен наслідок вилізе одразу.</p>
-        </article>
+        <article class="howto-card"><h2>Вибирайте самі</h2><p>Гра не буде казати, яка кнопка «правильна». Деяка хуйня вилізе боком не зараз, а через кілька глав.</p></article>
+        <article class="howto-card"><h2>Персонажі памʼятають</h2><p>Навіть якщо ви дуже сподівались, що вони забудуть. Особливо голуб.</p></article>
+        <article class="howto-card"><h2>Якщо здохли</h2><p>Є ручні сейви й чекпойнт початку глави. Бо починати все з нуля через одну тупу кнопку – то вже ту мач.</p></article>
+        <article class="howto-card"><h2>І ще одне</h2><p>Там ше багато чого буде. Якщо буде…</p></article>
       </div>
       <div class="howto-start"><button id="beginGameBtn" class="primary big">Почати гру</button></div>
     </div>
@@ -68,7 +55,7 @@
   <section id="gameScreen" class="game-shell hidden">
     <header class="game-top">
       <div class="top-copy">
-        <div class="game-name">ДЕСЬ НЕ ТАМ <span>v0.9.2</span></div>
+        <div class="game-name">ДЕСЬ НЕ ТАМ <span>v0.9.3</span></div>
         <div class="world-line"><b id="timeLine"></b><span id="weatherLine"></span><span id="threatLine"></span></div>
       </div>
       <div id="miniNeeds" class="mini-needs" role="button" tabindex="0" aria-label="Відкрити потреби"></div>
@@ -157,7 +144,7 @@
 
   <div id="toast" class="toast hidden"></div>
 </main>
-<script type="module" src="./main.js?v=092"></script>
-<script type="module" src="./ui-v085.js?v=092"></script>
+<script type="module" src="./main.js?v=093"></script>
+<script type="module" src="./ui-v085.js?v=093"></script>
 </body>
 </html>

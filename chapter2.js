@@ -1,5 +1,5 @@
-import {ITEM_DEFS} from './data.js?v=092';
-import {effectiveStat} from './engine.js?v=092';
+import {ITEM_DEFS} from './data.js?v=093';
+import {effectiveStat} from './engine.js?v=093';
 
 const img=n=>`./${n}`;
 const hero=(name='ch2_hero_local.png',position='hero')=>({role:'hero',src:img(name),position});
@@ -33,7 +33,7 @@ export const CHAPTER2_SCENES={
   },
 
   ch2_fence:{
-    ...yard,id:'ch2_fence',caption:'Євпапій дочекався',actors:[hero('ch2_hero_local.png'),pigeon('pigeon_suspicious.png')],
+    ...yard,id:'ch2_fence',caption:'Євпапій дочекався',actors:[hero('ch2_hero_side.png'),pigeon('pigeon_suspicious.png')],
     text:`На паркані сидить Євпапій і, судячи з недовольної морди, чекав саме на вас.
 
 – Ти знаєш, я тут подумав…
@@ -82,7 +82,7 @@ export const CHAPTER2_SCENES={
   },
 
   ch2_legend:{
-    ...yard,id:'ch2_legend',caption:'місцева лєгенда',actors:[hero('ch2_hero_local.png'),pigeon('pigeon_suspicious.png','shoulder')],
+    ...yard,id:'ch2_legend',caption:'місцева лєгенда',actors:[hero('ch2_hero_side.png'),pigeon('pigeon_suspicious.png','shoulder')],
     text:`Євпапій тим часом уже знову сидить у вас на плечі й дивиться на стіл. Точніше, на сало. Видно, що атмосфера поминок його хвилює значно менше.
 
 Одна з жінок біля столу нарешті помічає вас. Дивиться спочатку на вас, потім трохи вище – на Євпапія.
@@ -169,7 +169,7 @@ export const CHAPTER2_SCENES={
   },
 
   ch2_supplies:{
-    ...table,id:'ch2_supplies',caption:'стратегічний запас',actors:[hero('ch2_hero_local.png')],
+    ...table,id:'ch2_supplies',caption:'стратегічний запас',actors:[hero('ch2_hero_side.png')],
     onEnter:s=>{
       const e=[];
       if(canFit(s,'water'))e.push({type:'itemAdd',id:'water',qty:1});
@@ -314,7 +314,7 @@ export const CHAPTER2_SCENES={
   },
 
   ch2_garlic:{
-    ...shed,id:'ch2_garlic',caption:'часник не прокатив',actors:[hero('ch2_hero_side.png'),pigeon('pigeon_suspicious.png')],
+    ...shed,id:'ch2_garlic',caption:'часник не прокатив',actors:[hero('ch2_hero_tired.png'),pigeon('pigeon_suspicious.png')],
     onEnter:[{type:'relationship',person:'evpapiy',key:'offense',value:1},{type:'memory',person:'evpapiy',key:'offeredGarlicAtShed',value:true}],
     text:`Ви дістаєте часник і показуєте Євпапію.
 
@@ -380,7 +380,7 @@ export const CHAPTER2_SCENES={
   },
 
   ch2_leave:{
-    ...shed,id:'ch2_leave',caption:'чужі проблеми',actors:[hero('ch2_hero_side.png')],
+    ...shed,id:'ch2_leave',caption:'чужі проблеми',actors:[hero('ch2_hero_tired.png')],
     onEnter:[{type:'flag',key:'ignoredShed',value:true}],
     text:`Та ну його нахуй. Ви досцяєте, застібаєтесь і йдете назад до людей. Чужий труп, чужий сарай, чужі проблеми.`,
     choices:[{id:'leave_people',label:'Вернутись до людей.',next:'ch2_figure',minutes:3,activity:'walk'}]

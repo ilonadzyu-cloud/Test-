@@ -1,12 +1,12 @@
-import {STAT_KEYS,STAT_LABELS,STAT_DESCRIPTIONS} from './config.js?v=092';
-import {STATUS_DEFS,CLOTHES,ITEM_DEFS} from './data.js?v=092';
-import {createInitialState,normalizeState,formatTime,threatInfo,thermal,equipmentTotals,equip,statModifiers,effectiveStat,itemCount,assignQuickSlot,useItem,executeAction,previewAction,addItem,spendHeroPoint,spendEvpPoint,addHeroXp,addEvpXp} from './engine.js?v=092';
-import {listRuns,loadRun,saveRun,clearRun,saveManual,loadManual,listManual,saveChapterCheckpoint,loadChapterCheckpoint,listChapterCheckpoints,clearChapterCheckpointsAfter,emergencySaveRun,storageCapabilities} from './storage.js?v=092';
+import {STAT_KEYS,STAT_LABELS,STAT_DESCRIPTIONS} from './config.js?v=093';
+import {STATUS_DEFS,CLOTHES,ITEM_DEFS} from './data.js?v=093';
+import {createInitialState,normalizeState,formatTime,threatInfo,thermal,equipmentTotals,equip,statModifiers,effectiveStat,itemCount,assignQuickSlot,useItem,executeAction,previewAction,addItem,spendHeroPoint,spendEvpPoint,addHeroXp,addEvpXp} from './engine.js?v=093';
+import {listRuns,loadRun,saveRun,clearRun,saveManual,loadManual,listManual,saveChapterCheckpoint,loadChapterCheckpoint,listChapterCheckpoints,clearChapterCheckpointsAfter,emergencySaveRun,storageCapabilities} from './storage.js?v=093';
 import {audioManager} from './audio.js?v=071';
-import {getChapter1Scene,CHAPTER1_SCENES,resolveSceneValue} from './chapter1.js?v=092';
-import {getChapter2Scene,CHAPTER2_SCENES} from './chapter2.js?v=092';
-import {getChapter3Scene,CHAPTER3_SCENES} from './chapter3.js?v=092';
-import {openStoryBattle} from './battle.js?v=092';
+import {getChapter1Scene,CHAPTER1_SCENES,resolveSceneValue} from './chapter1.js?v=093';
+import {getChapter2Scene,CHAPTER2_SCENES} from './chapter2.js?v=093';
+import {getChapter3Scene,CHAPTER3_SCENES} from './chapter3.js?v=093';
+import {openStoryBattle} from './battle.js?v=093';
 
 function getGameScene(state){
   const id=state?.story?.sceneId||state?.scene||'intro';
@@ -28,6 +28,33 @@ let sfxTimers=[];
 let deathTimer=null;
 let lastSleepMessage='';
 const categories=['all','Їжа та напої','Ліки','Зброя','Якась хуйня'];
+
+const TESTER_UNLOCK_KEY='des-ne-tam-tester-unlocked-v1';
+const TESTER_CODE_HASH='58346b69699f6dadc90ed95b5dd126bc42de7130d6b8213d83bc5b0cf59e885d';
+let testerTapCount=0;
+let testerTapTimer=null;
+function testerUnlocked(){try{return localStorage.getItem(TESTER_UNLOCK_KEY)==='1'}catch{return false}}
+function syncTesterAccess(){const b=$('#testModeBtn');if(!b)return;const on=testerUnlocked();b.classList.toggle('hidden',!on);b.setAttribute('aria-hidden',on?'false':'true')}
+async function sha256Text(value){const bytes=new TextEncoder().encode(String(value||''));const hash=await crypto.subtle.digest('SHA-256',bytes);return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+async function tryUnlockTester(){
+  const entered=window.prompt('КОД ТЕСТЕРА');
+  if(entered===null)return;
+  let ok=false;
+  try{ok=(await sha256Text(entered.trim()))===TESTER_CODE_HASH}catch{}
+  if(!ok){toast('НЕ ТОЙ КОД','Тестовий режим лишився закритим.');return}
+  try{localStorage.setItem(TESTER_UNLOCK_KEY,'1')}catch{}
+  syncTesterAccess();toast('ТЕСТ ВІДКРИТО','Кнопка зʼявилась у головному меню.');
+}
+function installTesterUnlock(){
+  const version=$('.start-card .version');if(!version)return;
+  version.style.cursor='default';
+  version.addEventListener('click',()=>{
+    clearTimeout(testerTapTimer);testerTapTimer=setTimeout(()=>{testerTapCount=0},2800);
+    testerTapCount+=1;
+    if(testerTapCount>=7){testerTapCount=0;clearTimeout(testerTapTimer);tryUnlockTester()}
+  });
+  syncTesterAccess();
+}
 
 const statFlavor={
   strength:{1:'Пока не Геракл.',2:'Ну, лавку вже не боїтесь.',3:'Вже можна шось важче за голуба.',4:'Може, двері самі відкриються.',5:'Село починає берегти меблі.'},
@@ -154,7 +181,9 @@ function createChapterState(run,chapter){
 }
 
 async function renderStart(mode='home'){
+  if(mode==='test'&&!testerUnlocked())mode='home';
   show('startScreen');
+  syncTesterAccess();
   document.body.classList.remove('menu-open');
   closeDeathOverlay();
   G=null;
@@ -226,6 +255,7 @@ async function startNew(run){
 }
 
 async function startTestChapter(chapter,opts={}){
+  if(!testerUnlocked()){await renderStart('home');return}
   await clearRun(99);G=createChapterState(99,chapter);G.flags.testMode=true;G.flags.initialStatusPopupShown=true;
   if(opts.allItems){for(const [id,qty] of [['water',2],['salo',2],['vodka',2],['knife',1],['garlic',3],['onion',2],['onion_angry',1],['onion_smelly',1],['medkit',2]]){const cur=G.inventory.find(x=>x.id===id);if(cur)cur.qty=Math.max(cur.qty,qty);else G.inventory.push({id,qty})}}
   if(opts.prayer){G.flags.prayerUnlocked=true;G.unlocks.prayer=true}
@@ -650,7 +680,7 @@ $('#continueBtn').onclick=()=>renderStart('continue');
 $('#chaptersBtn').onclick=()=>renderStart('chapters');
 $('#savesBtn').onclick=()=>renderStart('saves');
 $('#aboutBtn').onclick=openAbout;
-$('#testModeBtn').onclick=()=>renderStart('test');
+$('#testModeBtn').onclick=()=>{if(testerUnlocked())renderStart('test')};
 $('#aboutCloseBtn').onclick=closeAbout;
 $('#aboutOverlay').onclick=e=>{if(e.target===$('#aboutOverlay'))closeAbout()};
 $('#beginGameBtn').onclick=beginGame;
@@ -666,4 +696,5 @@ document.addEventListener('pointerdown',e=>{if(e.target.closest('button')){audio
 window.addEventListener('beforeunload',()=>{if(G)emergencySaveRun(G)});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&G)emergencySaveRun(G)});
 
+installTesterUnlock();
 renderStart('home');

@@ -1,4 +1,4 @@
-/* v0.9.2 – compact battle UI + story battle */
+/* v0.9.3 – compact battle UI + story battle */
 body.battle-open{overflow:hidden}
 .battle-overlay{position:fixed;inset:0;z-index:120;background:#080c09;display:grid;place-items:center;padding:0}
 .battle-overlay.hidden{display:none!important}

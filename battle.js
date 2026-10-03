@@ -1,7 +1,7 @@
-// v0.9.2 – combat test + story battle + healing/progression UI.
-import {createInitialState,normalizeState,effectiveStat,equipmentTotals,itemCount,removeItem,clone,addHeroXp,addEvpXp} from './engine.js?v=092';
-import {STATUS_DEFS} from './data.js?v=092';
-import {loadRun} from './storage.js?v=092';
+// v0.9.3 – combat test + story battle + healing/progression UI.
+import {createInitialState,normalizeState,effectiveStat,equipmentTotals,itemCount,removeItem,clone,addHeroXp,addEvpXp} from './engine.js?v=093';
+import {STATUS_DEFS} from './data.js?v=093';
+import {loadRun} from './storage.js?v=093';
 
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
@@ -36,7 +36,7 @@ function ensureBattleCss(){
   if(document.querySelector('link[data-battle-css="092"]'))return;
   document.querySelector('link[data-battle-css]')?.remove();
   const link=document.createElement('link');
-  link.rel='stylesheet';link.href='./battle.css?v=092';link.dataset.battleCss='092';document.head.appendChild(link);
+  link.rel='stylesheet';link.href='./battle.css?v=093';link.dataset.battleCss='093';document.head.appendChild(link);
 }
 
 function currentRunId(){const meta=document.querySelector('#menuMeta')?.textContent||'';const m=meta.match(/Проходження\s+(\d+)/i);return Math.max(1,Number(m?.[1]||1))}
