@@ -1,4 +1,4 @@
-// v0.9.5f – combat + story battle + full TРУПОСМЕРД reaction art.
+// v0.9.5j – combat + story branches + first-battle help + pre-battle modifiers.
 import {createInitialState,normalizeState,effectiveStat,equipmentTotals,itemCount,removeItem,clone,addHeroXp,addEvpXp} from './engine.js?v=093';
 import {STATUS_DEFS} from './data.js?v=093';
 import {loadRun} from './storage.js?v=093';
@@ -37,7 +37,7 @@ const CREATURE_ART_095F={
   hit:'./creature_hit_095f.webp',garlic:'./creature_garlic_battle_095f.webp',smelly:'./creature_smelly_095f.webp'
 };
 function setCreatureReaction(kind,ms=620){
-  if(battleKind!=='story'||battle?.storyId!=='shedCreature')return;
+  if(battleKind!=='story'||!String(battle?.storyId||'').startsWith('shedCreature'))return;
   battle.enemyReaction=kind;battle.enemyReactionUntil=Date.now()+ms;
 }
 function reactionPending(){return Boolean(battle?.enemyReaction&&Number(battle.enemyReactionUntil||0)>Date.now())}
@@ -100,6 +100,9 @@ function freshBattle(){
     enemyName:storyOptions?.enemyName||'ТЕСТОВА ХУЙНЯ',enemyMax:Number(storyOptions?.enemyMax||100),enemyHp:Number(storyOptions?.enemyHp||100),
     enemyArt:storyOptions?.enemyArt||null,enemyAttackArt:storyOptions?.enemyAttackArt||null,enemyWasHit:false,
     storyId:storyOptions?.id||null,lockVictory:Boolean(storyOptions?.lockVictory),
+    enemyDamageMult:Number(storyOptions?.enemyDamageMult||1),enemyHitMult:Number(storyOptions?.enemyHitMult||1),heroDamageMult:Number(storyOptions?.heroDamageMult||1),pigeonDamageMult:Number(storyOptions?.pigeonDamageMult||1),
+    turnLimit:Math.max(0,Number(storyOptions?.turnLimit||0)),scriptedTitle:storyOptions?.scriptedTitle||'',scriptedBody:storyOptions?.scriptedBody||'',xpReward:Math.max(0,Number(storyOptions?.xpReward??20)),
+    actionMode:storyOptions?.actionMode||'normal',battleNotes:Array.isArray(storyOptions?.battleNotes)?[...storyOptions.battleNotes]:[],
     turn:1,result:null,mode:'actions',phase:'hero',enemyTarget:null,enemyIntent:null,
     firstDamageAction:true,dodging:false,blindTurns:0,angryOnionTurns:0,stunTurns:0,
     pigeonThrown:false,pigeonUsed:false,pigeonTargetTurns:0,sunsetUsed:false,
@@ -107,12 +110,14 @@ function freshBattle(){
     pigeon:{level:evpSession.level,maxHp:evpSession.maxHp,hp:evpSession.hp,available:pigeonAvailable,recovering,retreated:false,offended:evpSession.offended},
     items:initialItems(),log:['ПОЧИНАЄТЬСЯ БІЙ']
   };
+  b.heroHp=clamp(b.heroHp+Number(storyOptions?.heroHpDelta||0),1,b.heroMax);
+  if(Number(storyOptions?.openingEnemyDamage||0)>0){const d=Math.max(0,Math.round(Number(storyOptions.openingEnemyDamage)));b.enemyHp=clamp(b.enemyHp-d,b.lockVictory?1:0,b.enemyMax);if(d)b.log.push(`ПЕРЕД БОЄМ: ТРУПОСМЕРД -${d} HP`)}
   b.enemyIntent=randomIntent(b);return b;
 }
 
 function addLog(text){if(!text)return;battle.log.push(text);battle.log=battle.log.slice(-3)}
 function spend(cost){if(battle.heroEnergy<cost){addLog('Не вистачає бадьорості.');return false}battle.heroEnergy=clamp(battle.heroEnergy-cost,0,100);return true}
-function physicalDamage(base){let damage=base+Math.floor(heroStat('strength')*.45);if(hasStatus('hungry'))damage=Math.max(1,Math.round(damage*.85));if(hasStatus('hangover')&&battle.firstDamageAction)damage=Math.max(1,Math.round(damage*.75));battle.firstDamageAction=false;return damage}
+function physicalDamage(base){let damage=base+Math.floor(heroStat('strength')*.45);if(hasStatus('hungry'))damage=Math.max(1,Math.round(damage*.85));if(hasStatus('hangover')&&battle.firstDamageAction)damage=Math.max(1,Math.round(damage*.75));damage=Math.max(1,Math.round(damage*Number(battle?.heroDamageMult||1)));battle.firstDamageAction=false;return damage}
 function hurtEnemy(amount,label){const n=Math.max(0,Math.round(amount)),before=battle.enemyHp,floor=battleKind==='story'&&battle.lockVictory?1:0;battle.enemyHp=clamp(battle.enemyHp-n,floor,battle.enemyMax);const actual=Math.max(0,before-battle.enemyHp);if(actual>0)battle.enemyWasHit=true;addLog(`${label}: -${actual} HP`);return actual}
 function consume(key,qty=1){battle.consumed[key]=(battle.consumed[key]||0)+qty}
 
@@ -142,11 +147,11 @@ function preEnemyPhase(){
 }
 
 function resolveEnemyAttack(target,intent){
-  let hitChance=Number(intent?.hit||.82);if(battle.blindTurns>0){hitChance*=.48;battle.blindTurns-=1}
+  let hitChance=Number(intent?.hit||.82)*Number(battle?.enemyHitMult||1);if(battle.blindTurns>0){hitChance*=.48;battle.blindTurns-=1}
   if(target==='hero'&&battle.dodging){const agility=clamp(.45+heroStat('agility')*.035,.45,.9);hitChance*=1-(agility*Number(intent?.dodgePower??.7))}
   let hit=false,damage=0;
   if(Math.random()<hitChance){
-    hit=true;const min=Number(intent?.min||13),max=Number(intent?.max||17);const raw=min+Math.floor(Math.random()*(Math.max(0,max-min)+1));
+    hit=true;const min=Number(intent?.min||13),max=Number(intent?.max||17);const raw=Math.max(1,Math.round((min+Math.floor(Math.random()*(Math.max(0,max-min)+1)))*Number(battle?.enemyDamageMult||1)));
     if(target==='pigeon'&&battle.pigeon.available){damage=hurtPigeon(raw);battle.lastImpact=`ЄВПАПІЮ -${damage} HP`;battle.impactKind='pigeon'}
     else{damage=Math.max(1,raw-armor());battle.heroHp=clamp(battle.heroHp-damage,0,battle.heroMax);addLog(`Ви: -${damage} HP`);battle.lastImpact=`ВАМ -${damage} HP`;battle.impactKind='hero'}
   }else{battle.lastImpact='ПРОМАЗАВ';battle.impactKind='miss';addLog(target==='pigeon'?'Ворог промазав по Євпапію.':'Ворог промазав.')}
@@ -154,7 +159,14 @@ function resolveEnemyAttack(target,intent){
 }
 
 function clearPhaseTimer(){if(phaseTimer){clearTimeout(phaseTimer);phaseTimer=null}}
-function finishTurnAfterEnemy(){if(!battle.result){battle.turn+=1;battle.enemyIntent=randomIntent(battle)}battle.mode=battle.result?'result':'actions';battle.phase=battle.result?'done':'hero';battle.enemyTarget=null;battle.lastImpact='';battle.impactKind='';renderBattle()}
+function finishTurnAfterEnemy(){
+  if(!battle.result&&battleKind==='story'&&battle.turnLimit>0&&battle.turn>=battle.turnLimit){
+    battle.result='win';battle.mode='result';battle.phase='done';battle.enemyTarget=null;battle.lastImpact='';battle.impactKind='';
+    if(battle.scriptedTitle)addLog(battle.scriptedTitle);renderBattle();return;
+  }
+  if(!battle.result){battle.turn+=1;battle.enemyIntent=randomIntent(battle)}
+  battle.mode=battle.result?'result':'actions';battle.phase=battle.result?'done':'hero';battle.enemyTarget=null;battle.lastImpact='';battle.impactKind='';renderBattle()
+}
 function startEnemyPhase(){
   if(checkEnd()){renderBattle();return}const prep=preEnemyPhase();if(battle.result){renderBattle();return}
   if(prep.skip){battle.phase='enemy-resolve';battle.mode='enemy';battle.lastImpact='ХІД ПРОПУЩЕНО';battle.impactKind='skip';renderBattle();clearPhaseTimer();phaseTimer=setTimeout(finishTurnAfterEnemy,720);return}
@@ -185,7 +197,8 @@ function triggerShedKnife(){
 
 function actKnife(){const cost=energyCost(7);if(!spend(cost)){renderBattle();return}if(battleKind==='story'&&battle.storyId==='shedCreature')return triggerShedKnife();hurtEnemy(physicalDamage(14),'Ніж');setCreatureReaction('hit');finishHeroAction()}
 function actDodge(){const cost=energyCost(hasStatus('hangover')?10:8);if(!spend(cost)){renderBattle();return}battle.dodging=true;addLog('Ви готуєтесь відскочити.');finishHeroAction()}
-function actPigeon(){if(!battle.pigeon.available)return;const cost=energyCost(10);if(!spend(cost)){renderBattle();return}battle.pigeonThrown=true;battle.pigeonUsed=true;battle.pigeonTargetTurns=1;const ep=sourceState?.companions?.evpapiy?.progression||{};const dmg=8+Number(ep.attack||1)*2+Number(ep.aggression||1);hurtEnemy(dmg,'Євпапій');setCreatureReaction('hit');finishHeroAction()}
+function actPrayer(){const cost=energyCost(3);if(!spend(cost)){renderBattle();return}battle.dodging=true;addLog('Ви молитесь далі й стараєтесь не отримати по єбалу.');finishHeroAction()}
+function actPigeon(){if(!battle.pigeon.available)return;const cost=energyCost(10);if(!spend(cost)){renderBattle();return}battle.pigeonThrown=true;battle.pigeonUsed=true;battle.pigeonTargetTurns=1;const ep=sourceState?.companions?.evpapiy?.progression||{};const dmg=Math.max(1,Math.round((8+Number(ep.attack||1)*2+Number(ep.aggression||1))*Number(battle?.pigeonDamageMult||1)));hurtEnemy(dmg,'Євпапій');setCreatureReaction('hit');finishHeroAction()}
 function actSunset(){if(!battle.pigeon.available)return;const cost=energyCost(6);if(!spend(cost)){renderBattle();return}battle.sunsetUsed=true;battle.pigeonUsed=true;battle.pigeonTargetTurns=1;hurtEnemy(Math.max(1,Math.ceil(battle.enemyHp/2)),'ЗАКАТ ПРЄЗРЄНІЯ');setCreatureReaction('hit');finishHeroAction()}
 function actHeal(){if(Number(battle.items.medkit||0)<=0||battle.heroHp>=battle.heroMax)return;battle.items.medkit-=1;consume('medkit',1);const before=battle.heroHp;battle.heroHp=clamp(battle.heroHp+25,0,battle.heroMax);addLog(`Аптечка: +${battle.heroHp-before} HP`);battle.mode='actions';finishHeroAction()}
 function actEatSalo(){
@@ -220,6 +233,9 @@ function throwableRack(){const xs=availableThrowables();if(!xs.length)return'<di
 
 function renderActionArea(){
   if(battle.mode==='enemy')return'<div class="battle-enemy-wait">ВОРОГ АТАКУЄ</div>';
+  if(battle.actionMode==='prayer'){
+    return `<div class="battle-actions">${actionButton('МОЛИТИСЬ ДАЛІ','pray-continue',{disabled:battle.heroEnergy<energyCost(3)})}${actionButton('ВІДСКОЧИТИ','dodge',{disabled:battle.heroEnergy<energyCost(hasStatus('hangover')?10:8)})}</div>`;
+  }
   if(battle.mode==='items'){
     const noEnergy=battle.heroEnergy<energyCost(4),xs=availableThrowables();
     return `<div class="battle-actions battle-items">${xs.map(([key,d])=>actionButton(`${d.icon} ${d.name} ×${battle.items[key]}`,`item-${key}`,{disabled:noEnergy})).join('')}${actionButton('НАЗАД','items-back',{extra:'ghost'})}</div>`;
@@ -239,11 +255,18 @@ function renderActionArea(){
 
 function pigeonResultLine(){if(!battle.pigeonUsed)return'';return `<div class="battle-pigeon-line"><img src="./pigeon_serious.png" alt="Євпапій"><div><b>Євпапій</b><p>– Ще раз так зробиш – наступний полетиш ти.</p></div></div>`}
 function resultHtml(){
-  const title=battle.result==='win'?'ПЕРЕМОГА':battle.result==='knockout'?'ВАС ВИРУБИЛО':'ВИ ЗДОХЛИ';
-  if(battleKind==='story')return `<div class="battle-result"><b>${title}</b>${pigeonResultLine()}<div>${actionButton('ПРОДОВЖИТИ','story-continue')}</div></div>`;
+  const title=battle.result==='win'?(battle.scriptedTitle||'ПЕРЕМОГА'):battle.result==='knockout'?'ВАС ВИРУБИЛО':'ВИ ЗДОХЛИ';
+  const body=battle.result==='win'&&battle.scriptedBody?`<small>${esc(battle.scriptedBody)}</small>`:'';
+  if(battleKind==='story')return `<div class="battle-result"><b>${title}</b>${body}${pigeonResultLine()}<div>${actionButton('ПРОДОВЖИТИ','story-continue')}</div></div>`;
   return `<div class="battle-result"><b>${title}</b>${pigeonResultLine()}<small>Це тест. Сейв не змінено.</small><div>${actionButton('ЩЕ РАЗ','restart')}${actionButton('ЗАКРИТИ','close',{extra:'ghost'})}</div></div>`;
 }
 
+function preBattleNotesHtml(){
+  const notes=[...(battle?.battleNotes||[])];
+  if(sourceState?.flags?.tipsyNegotiatedWithCreature)notes.push('ПЕРЕГОВОРИ ПІД ГРАДУСОМ · ТРУПОСМЕРД ТРОХИ ЗАВИС');
+  if(sourceState?.flags?.usedYebatoriumAtCreature)notes.push('«ЕХ, БУЛА НЕ БУЛА» · ВИ БʼЄТЕ ТРОХИ СМІЛИВІШЕ');
+  return notes.length?`<div class="battle-before-title">ПЕРЕД БОЄМ</div><div class="battle-before-list">${notes.slice(0,3).map(x=>`<span>${esc(x)}</span>`).join('')}</div>`:'';
+}
 function renderPigeonCard(){const card=overlay?.querySelector('[data-pigeon-card]');if(!card)return;const p=battle.pigeon,pct=p.available?Math.round(clamp(p.hp/p.maxHp*100,0,100)):0;card.classList.toggle('unavailable',!p.available);card.classList.toggle('recovering',p.recovering);card.querySelector('[data-pigeon-state]').textContent=p.recovering?'ЛІКУЄТЬСЯ':p.retreated?'ВИЙШОВ З БОЮ':`РІВ. ${p.level}`;card.querySelector('[data-pigeon-hp]').textContent=p.available?`❤️ ${pct}%`:'❤️ –';card.querySelector('[data-pigeon-real-hp]').textContent=p.available?`${p.hp}/${p.maxHp}`:''}
 function readableIntent(intent){
   if(hasStatus('headInjury'))return'Через розбиту голову важко зрозуміти, шо воно робить.';
@@ -272,7 +295,7 @@ function renderBattle(){
   overlay.querySelector('[data-hero-hp]').textContent=`❤️ ${Math.round(clamp(battle.heroHp/battle.heroMax*100,0,100))}%`;
   overlay.querySelector('[data-energy]').textContent=`⚡ ${Math.round(clamp(battle.heroEnergy,0,100))}%`;overlay.querySelector('[data-hero-level]').textContent=`РІВ. ${battle.heroLevel}`;
   overlay.querySelector('[data-battle-turn]').textContent=`ХІД ${battle.turn}`;
-  overlay.querySelector('[data-battle-states]').innerHTML=statusChips();
+  overlay.querySelector('[data-battle-states]').innerHTML=statusChips();overlay.querySelector('[data-battle-before]').innerHTML=preBattleNotesHtml();
   overlay.querySelector('[data-battle-log]').innerHTML=battle.log.map(x=>`<div>${esc(x)}</div>`).join('');
   overlay.querySelector('[data-battle-throwables]').innerHTML=throwableRack();
   overlay.querySelector('[data-battle-controls]').innerHTML=battle.result?resultHtml():renderActionArea();
@@ -282,7 +305,7 @@ function renderBattle(){
   const impact=overlay.querySelector('[data-impact]');impact.textContent=battle.lastImpact||'';impact.className=`battle-impact ${battle.phase==='impact'||battle.phase==='enemy-resolve'?'show':''} ${battle.impactKind||''}`;
   const art=overlay.querySelector('[data-enemy-art]'),placeholder=overlay.querySelector('[data-enemy-placeholder]');
   let src;
-  if(battleKind==='story'&&battle.storyId==='shedCreature'){
+  if(battleKind==='story'&&String(battle.storyId||'').startsWith('shedCreature')){
     if(battle.phase==='reaction'&&battle.enemyReaction)src=CREATURE_ART_095F[battle.enemyReaction]||CREATURE_ART_095F.hit;
     else if(battle.phase==='enemy'||battle.phase==='impact')src=CREATURE_ART_095F.attack;
     else src=CREATURE_ART_095F.normal;
@@ -296,7 +319,7 @@ function applyBattleToStoryState(){
   const s=clone(normalizeState(sourceState));s.health=clamp(battle.heroHp,0,100);s.needs.energy=clamp(battle.heroEnergy,0,100);
   for(const [id,qty] of Object.entries(battle.consumed||{}))removeItem(s,id,qty);
   const p=s.companions.evpapiy;s.companions.evpapiy={...p,level:battle.pigeon.level,maxHp:battle.pigeon.maxHp,hp:battle.pigeon.hp,skipBattles:evpSession.skipBattles,offended:battle.pigeon.offended||evpSession.offended};
-  const progressEvents=[...addHeroXp(s,20)];if(s.companions.evpapiy?.known&&battle.pigeon.available)progressEvents.push(...addEvpXp(s,20));battle.progressEvents=progressEvents;
+  const reward=Math.max(0,Number(battle.xpReward??20));const progressEvents=[...addHeroXp(s,reward)];if(s.companions.evpapiy?.known&&battle.pigeon.available)progressEvents.push(...addEvpXp(s,reward));battle.progressEvents=progressEvents;
   return normalizeState(s);
 }
 
@@ -306,7 +329,7 @@ function finishStoryBattle(){
 
 function handleAction(action){
   if(!battle||battle.mode==='enemy')return;
-  if(action==='knife')return actKnife();if(action==='dodge')return actDodge();if(action==='heal')return actHeal();if(action==='eat-salo')return actEatSalo();if(action==='pigeon')return actPigeon();if(action==='sunset')return actSunset();
+  if(action==='knife')return actKnife();if(action==='dodge')return actDodge();if(action==='pray-continue')return actPrayer();if(action==='heal')return actHeal();if(action==='eat-salo')return actEatSalo();if(action==='pigeon')return actPigeon();if(action==='sunset')return actSunset();
   if(action==='items'){battle.mode='items';return renderBattle()}if(action==='items-back'){battle.mode='actions';return renderBattle()}
   if(action.startsWith('item-'))return actItem(action.slice(5));
   if(action==='restart'){battle=freshBattle();return renderBattle()}if(action==='close')return closeBattleTest();if(action==='story-continue')return finishStoryBattle();
@@ -327,6 +350,7 @@ function makeOverlay(){
         <div class="battle-pigeon-compact" data-pigeon-card><img src="./pigeon_serious.png" alt="Євпапій"><div><b>ЄВПАПІЙ</b><span data-pigeon-hp>❤️ 100%</span><small><span data-pigeon-state>РІВ. 1</span><i data-pigeon-real-hp>50/50</i></small></div></div>
       </div>
     </div>
+    <div class="battle-before" data-battle-before></div>
     <div class="battle-statuses" data-battle-states></div>
     <div data-battle-throwables></div>
     <div class="battle-log" data-battle-log></div>
@@ -339,8 +363,28 @@ async function openBattleTest(runId=currentRunId()){
   battleKind='test';storyOptions=null;sourceState=await readCurrentState(runId);syncEvpapiySession();battle=freshBattle();makeOverlay();overlay.classList.remove('hidden');overlay.setAttribute('aria-hidden','false');document.body.classList.add('battle-open');renderBattle();
 }
 
+function ensureBattleHelpCss095j(){
+  if(document.querySelector('#battleHelpCss095j'))return;
+  const st=document.createElement('style');st.id='battleHelpCss095j';st.textContent=`
+    .battle-help095j{position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.82);display:grid;place-items:center;padding:18px}
+    .battle-help-card095j{width:min(440px,100%);background:#121b16;border:1px solid #3a4b3d;border-radius:18px;padding:18px;box-shadow:0 18px 50px rgba(0,0,0,.5)}
+    .battle-help-card095j h2{margin:4px 0 10px}.battle-help-card095j p{margin:7px 0;color:#d6d1c5;line-height:1.45}.battle-help-card095j button{width:100%;margin-top:12px}
+    .battle-before{margin:8px 0}.battle-before-title{font-size:.68rem;letter-spacing:.1em;color:#d7b36a;font-weight:800;margin-bottom:5px}.battle-before-list{display:flex;flex-wrap:wrap;gap:5px}.battle-before-list span{font-size:.72rem;border:1px solid #435445;background:#17231c;border-radius:999px;padding:5px 8px;color:#e7dfce}
+  `;document.head.appendChild(st)
+}
+function showBattleHelpOnce095j(){
+  if(battleKind!=='story'||sourceState?.flags?.battleHelpShown095j)return Promise.resolve();
+  sourceState.flags=sourceState.flags||{};sourceState.flags.battleHelpShown095j=true;ensureBattleHelpCss095j();
+  return new Promise(resolve=>{
+    const o=document.createElement('div');o.className='battle-help095j';o.innerHTML=`<div class="battle-help-card095j"><small>ЯК ПРАЦЮЄ БІЙ</small><h2>Тут уже треба трохи думати.</h2><p>За хід ви робите одну дію: бʼєте, відскакуєте, кидаєте предмет або використовуєте Євпапія.</p><p>Стани й попередні рішення реально міняють бій. Перед стартом гра покаже, що саме зараз вам допомагає або підставляє.</p><p>Не кожен сюжетний бій треба виграти «до нуля» – інколи достатньо пережити кілька ходів, після чого сюжет піде далі.</p><button class="primary">ПОНЯВ. ДАВАЙ.</button></div>`;
+    o.querySelector('button').onclick=()=>{o.remove();resolve()};document.body.appendChild(o);
+  });
+}
 export async function openStoryBattle(state,options={}){
-  ensureBattleCss();makeOverlay();clearPhaseTimer();battleKind='story';storyOptions={enemyName:'ТРУПОСМЕРД',enemyMax:100,enemyHp:100,enemyArt:CREATURE_ART_095F.normal,enemyAttackArt:CREATURE_ART_095F.attack,lockVictory:true,...options};sourceState=normalizeState(clone(state));syncEvpapiySession();battle=freshBattle();overlay.classList.remove('hidden');overlay.setAttribute('aria-hidden','false');document.body.classList.add('battle-open');renderBattle();return new Promise(resolve=>{storyResolver=resolve});
+  ensureBattleCss();ensureBattleHelpCss095j();makeOverlay();clearPhaseTimer();battleKind='story';storyOptions={enemyName:'ТРУПОСМЕРД',enemyMax:100,enemyHp:100,enemyArt:CREATURE_ART_095F.normal,enemyAttackArt:CREATURE_ART_095F.attack,lockVictory:true,...options};sourceState=normalizeState(clone(state));
+  if(sourceState?.flags?.usedYebatoriumAtCreature&&!('heroDamageMult' in options))storyOptions.heroDamageMult=1.1;
+  if(sourceState?.flags?.tipsyNegotiatedWithCreature&&!('enemyHitMult' in options))storyOptions.enemyHitMult=.9;
+  syncEvpapiySession();battle=freshBattle();await showBattleHelpOnce095j();overlay.classList.remove('hidden');overlay.setAttribute('aria-hidden','false');document.body.classList.add('battle-open');renderBattle();return new Promise(resolve=>{storyResolver=resolve});
 }
 
 function closeOverlay(resetKind=true){clearPhaseTimer();if(!overlay)return;overlay.classList.add('hidden');overlay.setAttribute('aria-hidden','true');overlay.classList.remove('enemy-attacking','target-pigeon','target-hero','hero-hit','pigeon-hit','enemy-miss','story-mode');document.body.classList.remove('battle-open');if(resetKind){battleKind='test';storyOptions=null}}
