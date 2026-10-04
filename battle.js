@@ -87,7 +87,7 @@ function freshBattle(){
   const b={
     heroMax:100,heroHp:hp,heroEnergy:energy,heroLevel:Math.max(1,Number(sourceState?.heroProgression?.level||1)),
     enemyName:storyOptions?.enemyName||'ТЕСТОВА ХУЙНЯ',enemyMax:Number(storyOptions?.enemyMax||100),enemyHp:Number(storyOptions?.enemyHp||100),
-    enemyArt:storyOptions?.enemyArt||null,enemyAttackArt:storyOptions?.enemyAttackArt||null,
+    enemyArt:storyOptions?.enemyArt||null,enemyAttackArt:storyOptions?.enemyAttackArt||null,enemyWasHit:false,
     storyId:storyOptions?.id||null,lockVictory:Boolean(storyOptions?.lockVictory),
     turn:1,result:null,mode:'actions',phase:'hero',enemyTarget:null,enemyIntent:null,
     firstDamageAction:true,dodging:false,blindTurns:0,angryOnionTurns:0,stunTurns:0,
@@ -102,7 +102,7 @@ function freshBattle(){
 function addLog(text){if(!text)return;battle.log.push(text);battle.log=battle.log.slice(-3)}
 function spend(cost){if(battle.heroEnergy<cost){addLog('Не вистачає бадьорості.');return false}battle.heroEnergy=clamp(battle.heroEnergy-cost,0,100);return true}
 function physicalDamage(base){let damage=base+Math.floor(heroStat('strength')*.45);if(hasStatus('hungry'))damage=Math.max(1,Math.round(damage*.85));if(hasStatus('hangover')&&battle.firstDamageAction)damage=Math.max(1,Math.round(damage*.75));battle.firstDamageAction=false;return damage}
-function hurtEnemy(amount,label){const n=Math.max(0,Math.round(amount)),before=battle.enemyHp,floor=battleKind==='story'&&battle.lockVictory?1:0;battle.enemyHp=clamp(battle.enemyHp-n,floor,battle.enemyMax);const actual=Math.max(0,before-battle.enemyHp);addLog(`${label}: -${actual} HP`);return actual}
+function hurtEnemy(amount,label){const n=Math.max(0,Math.round(amount)),before=battle.enemyHp,floor=battleKind==='story'&&battle.lockVictory?1:0;battle.enemyHp=clamp(battle.enemyHp-n,floor,battle.enemyMax);const actual=Math.max(0,before-battle.enemyHp);if(actual>0)battle.enemyWasHit=true;addLog(`${label}: -${actual} HP`);return actual}
 function consume(key,qty=1){battle.consumed[key]=(battle.consumed[key]||0)+qty}
 
 function checkEnd(){
@@ -259,7 +259,7 @@ function renderBattle(){
   const copy=intentCopy();overlay.querySelector('[data-intent-label]').textContent=copy.label;overlay.querySelector('[data-intent-text]').textContent=copy.text;
   const impact=overlay.querySelector('[data-impact]');impact.textContent=battle.lastImpact||'';impact.className=`battle-impact ${battle.phase==='impact'||battle.phase==='enemy-resolve'?'show':''} ${battle.impactKind||''}`;
   const art=overlay.querySelector('[data-enemy-art]'),placeholder=overlay.querySelector('[data-enemy-placeholder]');
-  const src=battle.phase==='enemy'&&battle.enemyAttackArt?battle.enemyAttackArt:battle.enemyArt;
+  const src=battleKind==='story'&&battle.storyId==='shedCreature'?(battle.enemyWasHit?'./creature_battle_095c.webp':'./creature_normal_095c.webp'):(battle.phase==='enemy'&&battle.enemyAttackArt?battle.enemyAttackArt:battle.enemyArt);
   if(src){art.src=src;art.classList.remove('hidden');placeholder.classList.add('hidden')}else{art.removeAttribute('src');art.classList.add('hidden');placeholder.classList.remove('hidden')}
   overlay.classList.toggle('enemy-attacking',battle.phase==='enemy');overlay.classList.toggle('target-pigeon',battle.phase==='enemy'&&battle.enemyTarget==='pigeon');overlay.classList.toggle('target-hero',battle.phase==='enemy'&&battle.enemyTarget==='hero');
   overlay.querySelectorAll('[data-battle-action]').forEach(btn=>btn.onclick=()=>handleAction(btn.dataset.battleAction));
@@ -313,7 +313,7 @@ async function openBattleTest(runId=currentRunId()){
 }
 
 export async function openStoryBattle(state,options={}){
-  ensureBattleCss();makeOverlay();clearPhaseTimer();battleKind='story';storyOptions={enemyName:'СТВОРІННЯ',enemyMax:100,enemyHp:100,enemyArt:'./creature_base.png',enemyAttackArt:'./creature_attack.png',lockVictory:true,...options};sourceState=normalizeState(clone(state));syncEvpapiySession();battle=freshBattle();overlay.classList.remove('hidden');overlay.setAttribute('aria-hidden','false');document.body.classList.add('battle-open');renderBattle();return new Promise(resolve=>{storyResolver=resolve});
+  ensureBattleCss();makeOverlay();clearPhaseTimer();battleKind='story';storyOptions={enemyName:'ТРУПОСМЕРД',enemyMax:100,enemyHp:100,enemyArt:'./creature_normal_095c.webp',enemyAttackArt:'./creature_normal_095c.webp',lockVictory:true,...options};sourceState=normalizeState(clone(state));syncEvpapiySession();battle=freshBattle();overlay.classList.remove('hidden');overlay.setAttribute('aria-hidden','false');document.body.classList.add('battle-open');renderBattle();return new Promise(resolve=>{storyResolver=resolve});
 }
 
 function closeOverlay(resetKind=true){clearPhaseTimer();if(!overlay)return;overlay.classList.add('hidden');overlay.setAttribute('aria-hidden','true');overlay.classList.remove('enemy-attacking','target-pigeon','target-hero','hero-hit','pigeon-hit','enemy-miss','story-mode');document.body.classList.remove('battle-open');if(resetKind){battleKind='test';storyOptions=null}}
