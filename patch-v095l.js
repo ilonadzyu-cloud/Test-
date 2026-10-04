@@ -1,4 +1,4 @@
-// v0.9.5l – cleaner staging: max 2 visible characters, Євпапій only on hand/head with ready combined art.
+// v0.9.5l – cleaner staging: max 2 visible characters; participating characters stay visible.
 import {CHAPTER1_SCENES} from './chapter1.js?v=093';
 import {CHAPTER2_SCENES} from './chapter2.js?v=093';
 import {CHAPTER3_SCENES} from './chapter3.js?v=093';
@@ -91,13 +91,17 @@ function cleanActors(scene,id){
 
     const hero=arr.find(a=>hasRole(a,'hero'));
     const npc=arr.find(a=>hasRole(a,'npc'));
+    const pigeon=arr.find(a=>hasRole(a,'pigeon'));
 
-    // Latest staging rule: no separate pigeon sprite. If Євпапій matters visually,
-    // he appears only via an approved combined hand/head art.
+    // Max two visible actors, but never delete a character who is actually part of the scene.
+    // Hero + NPC has priority when a third actor would overcrowd the frame.
     if(hero&&npc)return [hero,npc];
+    if(hero&&pigeon)return [hero,pigeon];
+    if(npc&&pigeon)return [npc,pigeon];
     if(hero)return [hero];
     if(npc)return [npc];
-    return arr.filter(a=>!hasRole(a,'pigeon')).slice(0,2);
+    if(pigeon)return [pigeon];
+    return arr.slice(0,2);
   };
 
   const old=scene.actors;
@@ -151,8 +155,8 @@ function addCss(){
       object-position:right bottom!important;
     }
 
-    /* Separate pigeon sprites are intentionally disabled by the new staging rule. */
-    .stage-image .actor.pigeon{display:none!important}
+    /* Separate Євпапій art is allowed whenever he is one of the two acting characters. */
+    .stage-image .actor.pigeon{display:block!important}
 
     @media(max-width:760px){
       .stage-image .actor.combo095l{

@@ -1,5 +1,5 @@
 export * from './engine.js?core=093';
-import {permanentStat} from './engine.js?core=093';
+import * as core from './engine.js?core=093';
 import {STAT_KEYS} from './config.js?v=093';
 import {STATUS_DEFS,CLOTHES} from './data.js?v=093';
 
@@ -32,5 +32,29 @@ export function statModifiers(state){
 }
 
 export function effectiveStat(state,key){
-  return Math.max(0,permanentStat(state,key)+Number(statModifiers(state)[key]||0));
+  return Math.max(0,core.permanentStat(state,key)+Number(statModifiers(state)[key]||0));
+}
+
+// v0.9.5q: old saves could contain СОБАКА-ПОДОЗРЄВАКА without a timer,
+// because the status originally had no duration. Give it a timer once on load.
+export function normalizeState(raw){
+  const s=core.normalizeState(raw);
+  if((s.activeStatuses||[]).includes('suspicious')&&!Number.isFinite(Number(s.statusTimers?.suspicious))){
+    s.statusTimers={...(s.statusTimers||{}),suspicious:Number(s.clock?.totalMinutes||0)+30};
+  }
+  return s;
+}
+
+const HIGH_STORY_DANGER=new Set([
+  'ch2_bang','ch2_bang3','ch2_after_bang','ch2_side','ch2_garlic','ch2_salo','ch2_pigeon_scared','ch2_figure','ch2_end',
+  'ch3_intro','ch3_obey','ch3_turn','ch3_call_pigeon','ch3_tell_off','ch3_creature','ch3_vodka','ch3_garlic','ch3_garlic_hit','ch3_ask_pigeon','ch3_run','ch3_pray',
+  'ch3_pray095_2','ch3_pray095_3','ch3_pray095_4'
+]);
+export function threatInfo(state){
+  const scene=String(state?.story?.sceneId||state?.scene||'');
+  const base=core.threatInfo(state);
+  // Critical physical condition still wins over story danger.
+  if(base.key==='critical')return base;
+  if(HIGH_STORY_DANGER.has(scene))return{key:'high',label:'ВИСОКА',reason:'поруч пряма сюжетна небезпека'};
+  return base;
 }

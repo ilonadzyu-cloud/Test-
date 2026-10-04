@@ -1,6 +1,6 @@
 // v0.9.5j – combat + story branches + first-battle help + pre-battle modifiers.
-import {createInitialState,normalizeState,effectiveStat,equipmentTotals,itemCount,removeItem,clone,addHeroXp,addEvpXp} from './engine.js?v=093';
-import {STATUS_DEFS} from './data.js?v=093';
+import {createInitialState,normalizeState,effectiveStat,equipmentTotals,itemCount,removeItem,clone,addHeroXp,addEvpXp,executeAction} from './engine.js?v=093';
+import {STATUS_DEFS,ITEM_DEFS} from './data.js?v=093';
 import {loadRun} from './storage.js?v=093';
 
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -26,7 +26,7 @@ const INTENTS={
 };
 
 const THROWABLES={
-  onion:{id:'onion',name:'ЗВИЧАЙНА ЦИБУЛЯ',icon:'🧅'},
+  onion:{id:'onion',name:'ДИВНА ЦИБУЛЯ',icon:'🧅'},
   onionAngry:{id:'onion_angry',name:'ЗЛА ЦИБУЛЯ',icon:'🧅'},
   onionSmelly:{id:'onion_smelly',name:'ВОНЮЧА ЦИБУЛЯ',icon:'🧅'},
   garlic:{id:'garlic',name:'ЧАСНИК',icon:'🧄'}
@@ -44,10 +44,26 @@ function reactionPending(){return Boolean(battle?.enemyReaction&&Number(battle.e
 function clearCreatureReaction(){if(!battle)return;battle.enemyReaction=null;battle.enemyReactionUntil=0}
 
 function ensureBattleCss(){
-  if(document.querySelector('link[data-battle-css="095"]'))return;
-  document.querySelector('link[data-battle-css]')?.remove();
-  const link=document.createElement('link');
-  link.rel='stylesheet';link.href='./battle.css?v=095';link.dataset.battleCss='095';document.head.appendChild(link);
+  if(!document.querySelector('link[data-battle-css="095"]')){
+    document.querySelector('link[data-battle-css]')?.remove();
+    const link=document.createElement('link');
+    link.rel='stylesheet';link.href='./battle.css?v=095';link.dataset.battleCss='095';document.head.appendChild(link);
+  }
+  if(!document.querySelector('#battleLayout095q')){
+    const st=document.createElement('style');st.id='battleLayout095q';st.textContent=`
+      @media(max-width:760px){
+        .battle-overlay{display:block!important;overflow:hidden!important;padding:0!important}
+        .battle-overlay.hidden{display:none!important}
+        .battle-shell{display:block!important;width:100%!important;height:100dvh!important;max-height:none!important;overflow-y:auto!important;overflow-x:hidden!important;-webkit-overflow-scrolling:touch!important;overscroll-behavior-y:contain!important;touch-action:pan-y!important}
+        .battle-head{position:sticky!important;top:0!important;z-index:40!important}
+        .battle-arena{height:500px!important;min-height:500px!important;overflow:hidden!important}
+        .battle-before,.battle-statuses,[data-battle-throwables],.battle-log,[data-battle-controls]{position:relative!important;z-index:2!important;flex:none!important}
+        .battle-before{padding:8px 10px!important;margin:0!important;border-bottom:1px solid #27362c!important;background:#0c140f!important}
+        .battle-log{min-height:72px!important}
+        .battle-actions{padding-bottom:calc(14px + env(safe-area-inset-bottom))!important}
+      }
+    `;document.head.appendChild(st);
+  }
 }
 
 function currentRunId(){const meta=document.querySelector('#menuMeta')?.textContent||'';const m=meta.match(/Проходження\s+(\d+)/i);return Math.max(1,Number(m?.[1]||1))}
@@ -214,10 +230,22 @@ function actEatSalo(){
   battle.mode='actions';finishHeroAction();
 }
 
+const KNOWN_THROWABLES_095S={
+  garlic:{description:'ТРУПОСМЕРДу дуже не подобається.'},
+  onion:{description:'Після кидка ворог погано бачить 1 хід.'},
+  onion_angry:{description:'Вгризається й продовжує кусати.'},
+  onion_smelly:{description:'Від неї можна й вирубитись.'}
+};
+function revealThrowable095s(key){
+  if(battleKind!=='story'||!sourceState)return;
+  const id=THROWABLES[key]?.id,known=KNOWN_THROWABLES_095S[id];if(!id||!known)return;
+  sourceState.flags=sourceState.flags||{};sourceState.flags[`itemKnown095s_${id}`]=true;
+  const d=ITEM_DEFS[id];if(d){d.category='Зброя';d.description=known.description;if(id==='onion')d.name='Дивна цибуля'}
+}
 function actItem(key){
   const cost=energyCost(4);if(!spend(cost)){renderBattle();return}if(!battle.items[key])return;
-  battle.items[key]-=1;consume(THROWABLES[key].id,1);
-  if(key==='onion'){hurtEnemy(5,'Звичайна цибуля');battle.blindTurns=1;addLog('Погано бачить 1 хід');setCreatureReaction('hit')}
+  battle.items[key]-=1;consume(THROWABLES[key].id,1);revealThrowable095s(key);
+  if(key==='onion'){hurtEnemy(5,'Дивна цибуля');battle.blindTurns=1;addLog('Погано бачить 1 хід');setCreatureReaction('hit')}
   else if(key==='onionAngry'){hurtEnemy(7,'Зла цибуля');battle.angryOnionTurns=3;addLog('Вгризлась · -4 HP ще 3 ходи');setCreatureReaction('hit')}
   else if(key==='onionSmelly'){battle.stunTurns=2;addLog('Вонюча цибуля: ворог вирубився · у вас 2 ходи');setCreatureReaction('smelly',760)}
   else if(key==='garlic'){hurtEnemy(battle.storyId==='shedCreature'?20:8,'Часник');addLog(battle.storyId==='shedCreature'?'Часник припік нормально.':'Часник прилетів.');setCreatureReaction('garlic',760)}
@@ -316,15 +344,28 @@ function renderBattle(){
 }
 
 function applyBattleToStoryState(){
-  const s=clone(normalizeState(sourceState));s.health=clamp(battle.heroHp,0,100);s.needs.energy=clamp(battle.heroEnergy,0,100);
+  let s=clone(normalizeState(sourceState));
+  const fightMinutes=Math.max(3,Math.min(15,Math.max(1,Number(battle.turn||1))*2));
+  const blackoutMinutes=battle.result==='knockout'?20:0;
+  const timed=executeAction(s,{id:'story_battle_time095q',minutes:fightMinutes+blackoutMinutes,activity:blackoutMinutes?'rest':'light'});
+  s=timed.state;
+  battle.timeEvents=timed.events||[];
+  s.health=clamp(battle.heroHp,0,100);s.needs.energy=clamp(battle.heroEnergy,0,100);
   for(const [id,qty] of Object.entries(battle.consumed||{}))removeItem(s,id,qty);
   const p=s.companions.evpapiy;s.companions.evpapiy={...p,level:battle.pigeon.level,maxHp:battle.pigeon.maxHp,hp:battle.pigeon.hp,skipBattles:evpSession.skipBattles,offended:battle.pigeon.offended||evpSession.offended};
-  const reward=Math.max(0,Number(battle.xpReward??20));const progressEvents=[...addHeroXp(s,reward)];if(s.companions.evpapiy?.known&&battle.pigeon.available)progressEvents.push(...addEvpXp(s,reward));battle.progressEvents=progressEvents;
+  const reward=Math.max(0,Number(battle.xpReward??20));const progressEvents=[...(battle.timeEvents||[]),...addHeroXp(s,reward)];if(s.companions.evpapiy?.known&&battle.pigeon.available)progressEvents.push(...addEvpXp(s,reward));battle.progressEvents=progressEvents;
   return normalizeState(s);
 }
 
 function finishStoryBattle(){
-  if(!storyResolver)return;const resolve=storyResolver;storyResolver=null;const state=applyBattleToStoryState();const outcome=battle.result||'cancel';closeOverlay(false);resolve({outcome,state,battle:{...battle},events:battle.progressEvents||[]});
+  if(!storyResolver)return;
+  const resolve=storyResolver;storyResolver=null;const state=applyBattleToStoryState();const outcome=battle.result||'cancel';
+  closeOverlay(false);
+  // WebKit sometimes kept the full-screen battle layer painted after the result.
+  // Remove this particular DOM node completely; the next battle will build a fresh one.
+  const oldOverlay=overlay;overlay=null;oldOverlay?.remove();
+  document.body.classList.remove('battle-open');
+  resolve({outcome,state,battle:{...battle},events:battle.progressEvents||[]});
 }
 
 function handleAction(action){
@@ -346,7 +387,7 @@ function makeOverlay(){
       <div class="battle-figure" aria-hidden="true"><img class="hidden" data-enemy-art alt=""><span data-enemy-placeholder>?</span></div>
       <div class="battle-impact" data-impact></div>
       <div class="battle-bottom-stats">
-        <div class="battle-hero-compact" data-hero-card><img src="./hero-face.png" alt="Герой"><div class="battle-hero-copy"><b>ГЕРОЙ</b><small data-hero-level>РІВ. 1</small></div><span data-hero-hp>❤️ 100%</span><span data-energy>⚡ 100%</span></div>
+        <div class="battle-hero-compact" data-hero-card><img src="./hero-face.png" alt="Ви"><div class="battle-hero-copy"><b>ВИ</b><small data-hero-level>РІВ. 1</small></div><span data-hero-hp>❤️ 100%</span><span data-energy>⚡ 100%</span></div>
         <div class="battle-pigeon-compact" data-pigeon-card><img src="./pigeon_serious.png" alt="Євпапій"><div><b>ЄВПАПІЙ</b><span data-pigeon-hp>❤️ 100%</span><small><span data-pigeon-state>РІВ. 1</span><i data-pigeon-real-hp>50/50</i></small></div></div>
       </div>
     </div>
