@@ -1,4 +1,4 @@
-// v0.9.3 – combat test + story battle + healing/progression UI.
+// v0.9.5 – combat + story battle + salo action when hungry.
 import {createInitialState,normalizeState,effectiveStat,equipmentTotals,itemCount,removeItem,clone,addHeroXp,addEvpXp} from './engine.js?v=093';
 import {STATUS_DEFS} from './data.js?v=093';
 import {loadRun} from './storage.js?v=093';
@@ -33,10 +33,10 @@ const THROWABLES={
 };
 
 function ensureBattleCss(){
-  if(document.querySelector('link[data-battle-css="092"]'))return;
+  if(document.querySelector('link[data-battle-css="095"]'))return;
   document.querySelector('link[data-battle-css]')?.remove();
   const link=document.createElement('link');
-  link.rel='stylesheet';link.href='./battle.css?v=093';link.dataset.battleCss='093';document.head.appendChild(link);
+  link.rel='stylesheet';link.href='./battle.css?v=095';link.dataset.battleCss='095';document.head.appendChild(link);
 }
 
 function currentRunId(){const meta=document.querySelector('#menuMeta')?.textContent||'';const m=meta.match(/Проходження\s+(\d+)/i);return Math.max(1,Number(m?.[1]||1))}
@@ -67,13 +67,14 @@ function energyCost(base){let extra=0;if(hasStatus('tired'))extra+=2;if(hasStatu
 function randomIntent(b){if(b?.pigeon?.available&&Math.random()<.14)return{...INTENTS.pigeon};const pool=[INTENTS.lunge,INTENTS.grab,INTENTS.heavy,INTENTS.sweep];return{...pool[Math.floor(Math.random()*pool.length)]}}
 
 function initialItems(){
-  if(battleKind==='test')return{onion:2,onionAngry:1,onionSmelly:1,garlic:1,medkit:2};
+  if(battleKind==='test')return{onion:2,onionAngry:1,onionSmelly:1,garlic:1,medkit:2,salo:1};
   return{
     onion:itemCount(sourceState,'onion'),
     onionAngry:itemCount(sourceState,'onion_angry'),
     onionSmelly:itemCount(sourceState,'onion_smelly'),
     garlic:itemCount(sourceState,'garlic'),
-    medkit:itemCount(sourceState,'medkit')
+    medkit:itemCount(sourceState,'medkit'),
+    salo:itemCount(sourceState,'salo')
   };
 }
 
@@ -165,6 +166,18 @@ function actDodge(){const cost=energyCost(hasStatus('hangover')?10:8);if(!spend(
 function actPigeon(){if(!battle.pigeon.available)return;const cost=energyCost(10);if(!spend(cost)){renderBattle();return}battle.pigeonThrown=true;battle.pigeonUsed=true;battle.pigeonTargetTurns=1;const ep=sourceState?.companions?.evpapiy?.progression||{};const dmg=8+Number(ep.attack||1)*2+Number(ep.aggression||1);hurtEnemy(dmg,'Євпапій');finishHeroAction()}
 function actSunset(){if(!battle.pigeon.available)return;const cost=energyCost(6);if(!spend(cost)){renderBattle();return}battle.sunsetUsed=true;battle.pigeonUsed=true;battle.pigeonTargetTurns=1;hurtEnemy(Math.max(1,Math.ceil(battle.enemyHp/2)),'ЗАКАТ ПРЄЗРЄНІЯ');finishHeroAction()}
 function actHeal(){if(Number(battle.items.medkit||0)<=0||battle.heroHp>=battle.heroMax)return;battle.items.medkit-=1;consume('medkit',1);const before=battle.heroHp;battle.heroHp=clamp(battle.heroHp+25,0,battle.heroMax);addLog(`Аптечка: +${battle.heroHp-before} HP`);battle.mode='actions';finishHeroAction()}
+function actEatSalo(){
+  if(!hasStatus('hungry')||Number(battle.items.salo||0)<=0)return;
+  battle.items.salo-=1;consume('salo',1);
+  sourceState.needs=sourceState.needs||{};
+  sourceState.needs.satiety=clamp(Number(sourceState.needs.satiety||0)+25,0,100);
+  if(sourceState.needs.satiety>40){
+    sourceState.activeStatuses=(sourceState.activeStatuses||[]).filter(id=>id!=='hungry');
+    if(sourceState.statusTimers)delete sourceState.statusTimers.hungry;
+    addLog('Ви зʼїли сало. ГОЛОДНИЙ знято.');
+  }else addLog('Ви зʼїли сало. Полегшало, але ви все ще голодний.');
+  battle.mode='actions';finishHeroAction();
+}
 
 function actItem(key){
   const cost=energyCost(4);if(!spend(cost)){renderBattle();return}if(!battle.items[key])return;
@@ -196,6 +209,7 @@ function renderActionArea(){
     ${actionButton('ВІДСКОЧИТИ','dodge',{disabled:battle.heroEnergy<dodgeCost})}
     ${actionButton('КИНУТИ ПРЕДМЕТ','items',{disabled:!availableThrowables().length||battle.heroEnergy<energyCost(4)})}
     ${Number(battle.items.medkit||0)>0?actionButton(`ЛІКУВАТИСЬ · 🩹 ×${battle.items.medkit}`,'heal',{disabled:battle.heroHp>=battle.heroMax}):''}
+    ${hasStatus('hungry')&&Number(battle.items.salo||0)>0?actionButton(`ЗʼЇСТИ САЛО · 🥓 ×${battle.items.salo}`,'eat-salo'):''}
     ${pigeonAvailable&&!battle.pigeonThrown?actionButton('КИНУТИ ЄВПАПІЄМ','pigeon',{disabled:battle.heroEnergy<pigeonCost}):''}
     ${pigeonAvailable&&!battle.sunsetUsed&&(battleKind==='test'||sourceState?.unlocks?.sunsetContempt)?actionButton('ЗАКАТ ПРЄЗРЄНІЯ','sunset',{disabled:battle.heroEnergy<sunsetCost,extra:'special'}):''}
   </div>`;
@@ -265,7 +279,7 @@ function finishStoryBattle(){
 
 function handleAction(action){
   if(!battle||battle.mode==='enemy')return;
-  if(action==='knife')return actKnife();if(action==='dodge')return actDodge();if(action==='heal')return actHeal();if(action==='pigeon')return actPigeon();if(action==='sunset')return actSunset();
+  if(action==='knife')return actKnife();if(action==='dodge')return actDodge();if(action==='heal')return actHeal();if(action==='eat-salo')return actEatSalo();if(action==='pigeon')return actPigeon();if(action==='sunset')return actSunset();
   if(action==='items'){battle.mode='items';return renderBattle()}if(action==='items-back'){battle.mode='actions';return renderBattle()}
   if(action.startsWith('item-'))return actItem(action.slice(5));
   if(action==='restart'){battle=freshBattle();return renderBattle()}if(action==='close')return closeBattleTest();if(action==='story-continue')return finishStoryBattle();
