@@ -60,6 +60,7 @@ function installStageSync095i(){
   stage.dataset.sync095i='1';
   let tick=0;
   let raf=0;
+  let queueRaf=0;
   const sync=()=>{
     const my=++tick;
     stage.classList.add('sync-pending095i');
@@ -76,8 +77,13 @@ function installStageSync095i(){
       });
     });
   };
-  const queue=()=>requestAnimationFrame(sync);
-  new MutationObserver(queue).observe(stage,{childList:true,subtree:true,attributes:true,attributeFilter:['style','class','src']});
+  const queue=()=>{
+    cancelAnimationFrame(queueRaf);
+    queueRaf=requestAnimationFrame(()=>{queueRaf=0;sync()});
+  };
+  // Do not observe the stage class attribute: sync() itself adds/removes
+  // sync-pending095i, and observing that class creates a self-triggering loop.
+  new MutationObserver(queue).observe(stage,{childList:true,subtree:true,attributes:true,attributeFilter:['style','src']});
   stage.addEventListener('load',queue,true);
   queue();
 }

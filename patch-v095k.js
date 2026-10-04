@@ -254,7 +254,10 @@ function addCss(){
 function installObservers(){
   const run=()=>{patchShop();replaceGarlicEmoji(document);syncStageClass()};
   let queued=false;const queue=()=>{if(queued)return;queued=true;queueMicrotask(()=>{queued=false;run()})};
-  new MutationObserver(queue).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class','src']});
+  // Class changes are intentionally ignored here. patch-v095i temporarily toggles
+  // a stage class while loading art, and watching class mutations can create
+  // a feedback loop on Safari/WebKit. Child additions and src swaps are enough.
+  new MutationObserver(queue).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['src']});
   run();
 }
 function warm(){for(const src of [A095K.garlic.cool,A095K.garlic.angry,A095K.wake.bowl,A095K.wake.idle]){const i=new Image();i.src=src}}

@@ -111,5 +111,5 @@ function warm(){
 
 function stamp(){document.querySelectorAll('.version,.howto-version,.game-name span').forEach(el=>el.textContent='v0.9.5m')}
 
-function apply095m(){patchCatMeeting();addCss();warm();stamp()}
+function apply095m(){patchCatMeeting();addCss();stamp()}
 queueMicrotask(apply095m);
