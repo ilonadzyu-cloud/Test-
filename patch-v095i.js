@@ -91,6 +91,6 @@ function warmup095i(){ Promise.allSettled(P095I_ASSETS.map(loadArt095i)); }
 function stamp095i(){
   document.querySelectorAll('.version,.howto-version,.game-name span').forEach(el=>el.textContent='v0.9.5i');
 }
-function apply095i(){ addCss095i(); warmup095i(); installStageSync095i(); stamp095i(); }
+function apply095i(){ addCss095i(); /* v0.9.5p: stage preload/sync disabled to prevent WebKit freeze */ stamp095i(); }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',apply095i,{once:true});
 else queueMicrotask(apply095i);

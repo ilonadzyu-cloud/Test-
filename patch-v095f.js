@@ -58,13 +58,6 @@ function addCss(){
   `;document.head.appendChild(style);
 }
 function stamp(){document.querySelectorAll('.version,.howto-version,.game-name span').forEach(el=>el.textContent='v0.9.5f')}
-function installStampGuard(){
-  const root=document.querySelector('#menuContent')||document.body;
-  let queued=false;
-  new MutationObserver(()=>{
-    if(queued)return;queued=true;
-    requestAnimationFrame(()=>{queued=false;stamp()});
-  }).observe(root,{childList:true,subtree:true,characterData:true});
-}
+function installStampGuard(){ /* v0.9.5p: disabled live DOM observer */ }
 function apply095f(){patchStoryCreatureArt();addCss();stamp();installStampGuard()}
 queueMicrotask(apply095f);

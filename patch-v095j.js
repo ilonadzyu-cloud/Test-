@@ -122,7 +122,8 @@ function clearerExit(){
     if(b.getAttribute('aria-label')!=='Вийти в головне меню')b.setAttribute('aria-label','Вийти в головне меню');
     if(b.title!=='Вийти в головне меню')b.title='Вийти в головне меню';
   };
-  fix();new MutationObserver(fix).observe(document.body,{childList:true,subtree:true});
+  // v0.9.5p: apply once; no body observer during gameplay.
+  fix();
   if(!document.querySelector('#patch095jcss')){
     const st=document.createElement('style');st.id='patch095jcss';st.textContent=`
       @media(max-width:760px){

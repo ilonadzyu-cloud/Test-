@@ -114,24 +114,7 @@ function enforceTwoCharacterRule(){
 }
 
 function stageGuard(){
-  const stage=document.querySelector('#stageImage');
-  if(!stage||stage.dataset.twoActor095l==='1')return;
-  stage.dataset.twoActor095l='1';
-  const trim=()=>{
-    const actors=[...stage.querySelectorAll('.actor')];
-    // Safety net in case an older runtime patch injects somebody after the scene was normalized.
-    if(actors.length<=2)return;
-    const keep=[];
-    const combo=actors.find(a=>a.classList.contains('combo095l')||a.classList.contains('combo095b')||a.classList.contains('dance095b')||a.classList.contains('dance095f'));
-    if(combo)keep.push(combo);
-    const hero=actors.find(a=>a.classList.contains('hero')&&!keep.includes(a));
-    if(hero&&keep.length<2)keep.push(hero);
-    const npc=actors.find(a=>a.classList.contains('npc')&&!keep.includes(a));
-    if(npc&&keep.length<2)keep.push(npc);
-    for(const a of actors)if(!keep.includes(a))a.remove();
-  };
-  new MutationObserver(trim).observe(stage,{childList:true,subtree:true});
-  trim();
+  // v0.9.5p: runtime DOM trimming observer disabled. Scene data is already normalized above.
 }
 
 function addCss(){

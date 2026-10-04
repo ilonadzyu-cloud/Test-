@@ -51,7 +51,7 @@ function installAcquisitionToast(){
     clearTimeout(toast._item095g);
     toast._item095g=setTimeout(()=>toast.classList.add('hidden'),3600);
   };
-  new MutationObserver(run).observe(extras,{childList:true,subtree:true,characterData:true});
+  // v0.9.5p: no live observer; the regular story notice remains visible.
   run();
 }
 

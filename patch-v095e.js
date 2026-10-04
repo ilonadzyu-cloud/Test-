@@ -22,13 +22,7 @@ function stamp095e(){
 function apply095e(){
   fixExactStatFlavor095e();
   stamp095e();
-  const root=document.querySelector('#menuContent')||document.body;
-  let queued=false;
-  new MutationObserver(()=>{
-    if(queued)return;
-    queued=true;
-    requestAnimationFrame(()=>{queued=false;fixExactStatFlavor095e();stamp095e()});
-  }).observe(root,{childList:true,subtree:true,characterData:true});
+  // v0.9.5p: no live MutationObserver. The exact labels are applied when this patch loads.
 }
 
 queueMicrotask(apply095e);

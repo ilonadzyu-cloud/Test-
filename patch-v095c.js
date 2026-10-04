@@ -107,13 +107,13 @@ function setupHudRelocation(){
 function syncGameViewport(){
   const screen=document.querySelector('#gameScreen');if(!screen)return;
   const run=()=>document.body.classList.toggle('game-active095c',mq.matches&&!screen.classList.contains('hidden'));
-  new MutationObserver(run).observe(screen,{attributes:true,attributeFilter:['class']});
+  // v0.9.5p: do not watch class mutations during stage startup.
   mq.addEventListener?.('change',run);run();
 }
 
 function resetStoryScroll(){
   const text=document.querySelector('#storyText'),card=document.querySelector('.story-card');if(!text||!card)return;
-  new MutationObserver(()=>{if(mq.matches)card.scrollTop=0}).observe(text,{childList:true,subtree:true,characterData:true});
+  // v0.9.5p: story scroll reset is handled by normal navigation; no mutation watcher.
 }
 
 function addCss(){
@@ -169,9 +169,8 @@ function addCss(){
 }
 
 function installOnionObserver(){
-  let queued=false;
-  const run=()=>{if(queued)return;queued=true;queueMicrotask(()=>{queued=false;patchRenderedOnions(document)})};
-  new MutationObserver(run).observe(document.body,{childList:true,subtree:true});run();
+  // v0.9.5p: one-shot render decoration only; avoids broad DOM observation on WebKit.
+  patchRenderedOnions(document);
 }
 
 function apply095c(){

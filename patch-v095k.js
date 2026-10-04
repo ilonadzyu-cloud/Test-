@@ -252,13 +252,12 @@ function addCss(){
 }
 
 function installObservers(){
+  // v0.9.5p: WebKit-safe. No MutationObserver on the live game DOM.
   const run=()=>{patchShop();replaceGarlicEmoji(document);syncStageClass()};
-  let queued=false;const queue=()=>{if(queued)return;queued=true;queueMicrotask(()=>{queued=false;run()})};
-  // Class changes are intentionally ignored here. patch-v095i temporarily toggles
-  // a stage class while loading art, and watching class mutations can create
-  // a feedback loop on Safari/WebKit. Child additions and src swaps are enough.
-  new MutationObserver(queue).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['src']});
   run();
+  document.addEventListener('click',e=>{
+    if(e.target?.closest?.('[data-tab="shop"],#menuBtn,.quick-slot')) setTimeout(run,0);
+  },{passive:true});
 }
 function warm(){for(const src of [A095K.garlic.cool,A095K.garlic.angry,A095K.wake.bowl,A095K.wake.idle]){const i=new Image();i.src=src}}
 function stamp(){document.querySelectorAll('.version,.howto-version,.game-name span').forEach(el=>el.textContent='v0.9.5k')}

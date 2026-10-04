@@ -148,7 +148,7 @@ function patchArtAndUi(){
       card.appendChild(meter);
     });
   };
-  new MutationObserver(()=>queueMicrotask(decorateStats)).observe(document.body,{childList:true,subtree:true});
+  // v0.9.5p: one-shot only. Runtime body observers were causing a WebKit render freeze.
   decorateStats();
 }
 

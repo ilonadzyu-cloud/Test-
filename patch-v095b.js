@@ -172,13 +172,8 @@ function apply095b(){
   patchSceneActors(CHAPTER3_SCENES);
   forceKnownScenes();
   addCss();
+  // v0.9.5p: keep initial decoration only. No broad MutationObserver on document.body.
   decorate();
-  let scheduled=false;
-  const obs=new MutationObserver(()=>{
-    if(scheduled)return;scheduled=true;
-    queueMicrotask(()=>{scheduled=false;decorate()});
-  });
-  obs.observe(document.body,{childList:true,subtree:true});
 }
 
 queueMicrotask(apply095b);
