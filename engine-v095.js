@@ -150,6 +150,7 @@ export function normalizeState(raw){
   if(truposmerdSeen095v){
     const facts=['Виліз із сараю. Воняє. Живучий.'];
     if(s.flags?.itemKnown095s_garlic)facts.push('Часник йому дуже не подобається.');
+    if(s.flags?.creaturePrayerReactionKnown095w)facts.push('На молитву реагує дуже дивно.');
     if(s.flags?.creatureVodkaFriend)facts.push('Горілку любить.');
     s.companions.truposmerd={
       ...(s.companions.truposmerd||{}),

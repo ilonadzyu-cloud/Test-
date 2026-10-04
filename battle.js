@@ -120,11 +120,11 @@ function freshBattle(){
     turnLimit:Math.max(0,Number(storyOptions?.turnLimit||0)),scriptedTitle:storyOptions?.scriptedTitle||'',scriptedBody:storyOptions?.scriptedBody||'',xpReward:Math.max(0,Number(storyOptions?.xpReward??20)),
     actionMode:storyOptions?.actionMode||'normal',battleNotes:Array.isArray(storyOptions?.battleNotes)?[...storyOptions.battleNotes]:[],
     turn:1,result:null,mode:'actions',phase:'hero',enemyTarget:null,enemyIntent:null,
-    firstDamageAction:true,dodging:false,blindTurns:0,angryOnionTurns:0,stunTurns:0,
+    firstDamageAction:true,dodging:false,guarding:false,blindTurns:0,angryOnionTurns:0,stunTurns:0,
     pigeonThrown:false,pigeonUsed:false,pigeonTargetTurns:0,sunsetUsed:false,
     lastImpact:'',impactKind:'',consumed:{},knifeDestroyed:false,enemyReaction:null,enemyReactionUntil:0,
     pigeon:{level:evpSession.level,maxHp:evpSession.maxHp,hp:evpSession.hp,available:pigeonAvailable,recovering,retreated:false,offended:evpSession.offended},
-    items:initialItems(),log:['ПОЧИНАЄТЬСЯ БІЙ']
+    items:initialItems(),log:[storyOptions?.actionMode==='survival'?'ТРУПОСМЕРД КИДАЄТЬСЯ НА ВАС':'ПОЧИНАЄТЬСЯ БІЙ']
   };
   b.heroHp=clamp(b.heroHp+Number(storyOptions?.heroHpDelta||0),1,b.heroMax);
   if(Number(storyOptions?.openingEnemyDamage||0)>0){const d=Math.max(0,Math.round(Number(storyOptions.openingEnemyDamage)));b.enemyHp=clamp(b.enemyHp-d,b.lockVictory?1:0,b.enemyMax);if(d)b.log.push(`ПЕРЕД БОЄМ: ТРУПОСМЕРД -${d} HP`)}
@@ -167,11 +167,12 @@ function resolveEnemyAttack(target,intent){
   if(target==='hero'&&battle.dodging){const agility=clamp(.45+heroStat('agility')*.035,.45,.9);hitChance*=1-(agility*Number(intent?.dodgePower??.7))}
   let hit=false,damage=0;
   if(Math.random()<hitChance){
-    hit=true;const min=Number(intent?.min||13),max=Number(intent?.max||17);const raw=Math.max(1,Math.round((min+Math.floor(Math.random()*(Math.max(0,max-min)+1)))*Number(battle?.enemyDamageMult||1)));
+    hit=true;const min=Number(intent?.min||13),max=Number(intent?.max||17);let raw=Math.max(1,Math.round((min+Math.floor(Math.random()*(Math.max(0,max-min)+1)))*Number(battle?.enemyDamageMult||1)));
+    if(target==='hero'&&battle.guarding){raw=Math.max(1,Math.round(raw*.55));addLog('Прикрились · удар слабший.')}
     if(target==='pigeon'&&battle.pigeon.available){damage=hurtPigeon(raw);battle.lastImpact=`ЄВПАПІЮ -${damage} HP`;battle.impactKind='pigeon'}
     else{damage=Math.max(1,raw-armor());battle.heroHp=clamp(battle.heroHp-damage,0,battle.heroMax);addLog(`Ви: -${damage} HP`);battle.lastImpact=`ВАМ -${damage} HP`;battle.impactKind='hero'}
   }else{battle.lastImpact='ПРОМАЗАВ';battle.impactKind='miss';addLog(target==='pigeon'?'Ворог промазав по Євпапію.':'Ворог промазав.')}
-  battle.dodging=false;battle.heroEnergy=clamp(battle.heroEnergy+4,0,100);checkEnd();return{target,hit,damage};
+  battle.dodging=false;battle.guarding=false;battle.heroEnergy=clamp(battle.heroEnergy+4,0,100);checkEnd();return{target,hit,damage};
 }
 
 function clearPhaseTimer(){if(phaseTimer){clearTimeout(phaseTimer);phaseTimer=null}}
@@ -213,8 +214,9 @@ function triggerShedKnife(){
 
 function actKnife(){const cost=energyCost(7);if(!spend(cost)){renderBattle();return}if(battleKind==='story'&&battle.storyId==='shedCreature')return triggerShedKnife();hurtEnemy(physicalDamage(14),'Ніж');setCreatureReaction('hit');finishHeroAction()}
 function actDodge(){const cost=energyCost(hasStatus('hangover')?10:8);if(!spend(cost)){renderBattle();return}battle.dodging=true;addLog('Ви готуєтесь відскочити.');finishHeroAction()}
+function actGuard(){const cost=energyCost(5);if(!spend(cost)){renderBattle();return}battle.guarding=true;addLog('Ви прикриваєтесь і чекаєте удару.');finishHeroAction()}
 function actPrayer(){const cost=energyCost(3);if(!spend(cost)){renderBattle();return}battle.dodging=true;addLog('Ви молитесь далі й стараєтесь не отримати по єбалу.');finishHeroAction()}
-function actPigeon(){if(!battle.pigeon.available)return;const cost=energyCost(10);if(!spend(cost)){renderBattle();return}battle.pigeonThrown=true;battle.pigeonUsed=true;battle.pigeonTargetTurns=1;const ep=sourceState?.companions?.evpapiy?.progression||{};const dmg=Math.max(1,Math.round((8+Number(ep.attack||1)*2+Number(ep.aggression||1))*Number(battle?.pigeonDamageMult||1)));hurtEnemy(dmg,'Євпапій');setCreatureReaction('hit');finishHeroAction()}
+function actPigeon(){if(!battle.pigeon.available)return;const cost=energyCost(10);if(!spend(cost)){renderBattle();return}battle.pigeonThrown=true;battle.pigeonUsed=true;battle.pigeonTargetTurns=1;if(battle.actionMode==='survival'){addLog('Євпапій відволік ТРУПОСМЕРДА на себе.');finishHeroAction();return}const ep=sourceState?.companions?.evpapiy?.progression||{};const dmg=Math.max(1,Math.round((8+Number(ep.attack||1)*2+Number(ep.aggression||1))*Number(battle?.pigeonDamageMult||1)));hurtEnemy(dmg,'Євпапій');setCreatureReaction('hit');finishHeroAction()}
 function actSunset(){if(!battle.pigeon.available)return;const cost=energyCost(6);if(!spend(cost)){renderBattle();return}battle.sunsetUsed=true;battle.pigeonUsed=true;battle.pigeonTargetTurns=1;hurtEnemy(Math.max(1,Math.ceil(battle.enemyHp/2)),'ЗАКАТ ПРЄЗРЄНІЯ');setCreatureReaction('hit');finishHeroAction()}
 function actHeal(){if(Number(battle.items.medkit||0)<=0||battle.heroHp>=battle.heroMax)return;battle.items.medkit-=1;consume('medkit',1);const before=battle.heroHp;battle.heroHp=clamp(battle.heroHp+25,0,battle.heroMax);addLog(`Аптечка: +${battle.heroHp-before} HP`);battle.mode='actions';finishHeroAction()}
 function actEatSalo(){
@@ -268,6 +270,16 @@ function renderActionArea(){
     const noEnergy=battle.heroEnergy<energyCost(4),xs=availableThrowables();
     return `<div class="battle-actions battle-items">${xs.map(([key,d])=>actionButton(`${d.icon} ${d.name} ×${battle.items[key]}`,`item-${key}`,{disabled:noEnergy})).join('')}${actionButton('НАЗАД','items-back',{extra:'ghost'})}</div>`;
   }
+  if(battle.actionMode==='survival'){
+    const dodgeCost=energyCost(hasStatus('hangover')?10:8),guardCost=energyCost(5),pigeonCost=energyCost(10),pigeonAvailable=battle.pigeon.available;
+    return `<div class="battle-actions">
+      ${actionButton('ВІДСКОЧИТИ','dodge',{disabled:battle.heroEnergy<dodgeCost})}
+      ${actionButton('ПРИКРИТИСЬ','guard',{disabled:battle.heroEnergy<guardCost})}
+      ${actionButton('КИНУТИ ПРЕДМЕТ','items',{disabled:!availableThrowables().length||battle.heroEnergy<energyCost(4)})}
+      ${Number(battle.items.medkit||0)>0?actionButton(`ЛІКУВАТИСЬ · 🩹 ×${battle.items.medkit}`,'heal',{disabled:battle.heroHp>=battle.heroMax}):''}
+      ${pigeonAvailable&&!battle.pigeonThrown?actionButton('ЄВПАПІЙ, ВІДВОЛІЧИ ЙОГО','pigeon',{disabled:battle.heroEnergy<pigeonCost}):''}
+    </div>`;
+  }
   const knifeCost=energyCost(7),dodgeCost=energyCost(hasStatus('hangover')?10:8),pigeonCost=energyCost(10),sunsetCost=energyCost(6),pigeonAvailable=battle.pigeon.available;
   const hasKnife=battleKind==='test'||itemCount(sourceState,'knife')-Number(battle.consumed.knife||0)>0;
   return `<div class="battle-actions">
@@ -293,7 +305,8 @@ function preBattleNotesHtml(){
   const notes=[...(battle?.battleNotes||[])];
   if(sourceState?.flags?.tipsyNegotiatedWithCreature)notes.push('ПЕРЕГОВОРИ ПІД ГРАДУСОМ · ТРУПОСМЕРД ТРОХИ ЗАВИС');
   if(sourceState?.flags?.usedYebatoriumAtCreature)notes.push('«ЕХ, БУЛА НЕ БУЛА» · ВИ БʼЄТЕ ТРОХИ СМІЛИВІШЕ');
-  return notes.length?`<div class="battle-before-title">ПЕРЕД БОЄМ</div><div class="battle-before-list">${notes.slice(0,3).map(x=>`<span>${esc(x)}</span>`).join('')}</div>`:'';
+  const title=battle?.actionMode==='survival'?'ПЕРЕД СУТИЧКОЮ':'ПЕРЕД БОЄМ';
+  return notes.length?`<div class="battle-before-title">${title}</div><div class="battle-before-list">${notes.slice(0,3).map(x=>`<span>${esc(x)}</span>`).join('')}</div>`:'';
 }
 function renderPigeonCard(){const card=overlay?.querySelector('[data-pigeon-card]');if(!card)return;const p=battle.pigeon,pct=p.available?Math.round(clamp(p.hp/p.maxHp*100,0,100)):0;card.classList.toggle('unavailable',!p.available);card.classList.toggle('recovering',p.recovering);card.querySelector('[data-pigeon-state]').textContent=p.recovering?'ЛІКУЄТЬСЯ':p.retreated?'ВИЙШОВ З БОЮ':`РІВ. ${p.level}`;card.querySelector('[data-pigeon-hp]').textContent=p.available?`❤️ ${pct}%`:'❤️ –';card.querySelector('[data-pigeon-real-hp]').textContent=p.available?`${p.hp}/${p.maxHp}`:''}
 function readableIntent(intent){
@@ -317,9 +330,9 @@ function intentCopy(){
 function renderBattle(){
   if(!overlay||!battle)return;
   overlay.classList.toggle('story-mode',battleKind==='story');
-  overlay.querySelector('[data-battle-kicker]').textContent=battleKind==='story'?'БІЙ':'ТЕСТ БОЮ';
+  overlay.querySelector('[data-battle-kicker]').textContent=battleKind==='story'?(battle.actionMode==='survival'?'СУТИЧКА':'БІЙ'):'ТЕСТ БОЮ';
   overlay.querySelector('[data-enemy-name]').textContent=battle.enemyName;
-  overlay.querySelector('[data-enemy-hp]').textContent=`❤️ ${Math.round(clamp(battle.enemyHp/battle.enemyMax*100,0,100))}%`;
+  overlay.querySelector('[data-enemy-hp]').textContent=battle.actionMode==='survival'?'НЕВІДОМО':`❤️ ${Math.round(clamp(battle.enemyHp/battle.enemyMax*100,0,100))}%`;
   overlay.querySelector('[data-hero-hp]').textContent=`❤️ ${Math.round(clamp(battle.heroHp/battle.heroMax*100,0,100))}%`;
   overlay.querySelector('[data-energy]').textContent=`⚡ ${Math.round(clamp(battle.heroEnergy,0,100))}%`;overlay.querySelector('[data-hero-level]').textContent=`РІВ. ${battle.heroLevel}`;
   overlay.querySelector('[data-battle-turn]').textContent=`ХІД ${battle.turn}`;
@@ -370,7 +383,7 @@ function finishStoryBattle(){
 
 function handleAction(action){
   if(!battle||battle.mode==='enemy')return;
-  if(action==='knife')return actKnife();if(action==='dodge')return actDodge();if(action==='pray-continue')return actPrayer();if(action==='heal')return actHeal();if(action==='eat-salo')return actEatSalo();if(action==='pigeon')return actPigeon();if(action==='sunset')return actSunset();
+  if(action==='knife')return actKnife();if(action==='dodge')return actDodge();if(action==='guard')return actGuard();if(action==='pray-continue')return actPrayer();if(action==='heal')return actHeal();if(action==='eat-salo')return actEatSalo();if(action==='pigeon')return actPigeon();if(action==='sunset')return actSunset();
   if(action==='items'){battle.mode='items';return renderBattle()}if(action==='items-back'){battle.mode='actions';return renderBattle()}
   if(action.startsWith('item-'))return actItem(action.slice(5));
   if(action==='restart'){battle=freshBattle();return renderBattle()}if(action==='close')return closeBattleTest();if(action==='story-continue')return finishStoryBattle();
@@ -417,7 +430,11 @@ function showBattleHelpOnce095j(){
   if(battleKind!=='story'||sourceState?.flags?.battleHelpShown095j)return Promise.resolve();
   sourceState.flags=sourceState.flags||{};sourceState.flags.battleHelpShown095j=true;ensureBattleHelpCss095j();
   return new Promise(resolve=>{
-    const o=document.createElement('div');o.className='battle-help095j';o.innerHTML=`<div class="battle-help-card095j"><small>ЯК ПРАЦЮЄ БІЙ</small><h2>Тут уже треба трохи думати.</h2><p>За хід ви робите одну дію: бʼєте, відскакуєте, кидаєте предмет або використовуєте Євпапія.</p><p>Стани й попередні рішення реально міняють бій. Перед стартом гра покаже, що саме зараз вам допомагає або підставляє.</p><p>Не кожен сюжетний бій треба виграти «до нуля» – інколи достатньо пережити кілька ходів, після чого сюжет піде далі.</p><button class="primary">ПОНЯВ. ДАВАЙ.</button></div>`;
+    const survival=battle?.actionMode==='survival';
+    const o=document.createElement('div');o.className='battle-help095j';
+    o.innerHTML=survival
+      ?`<div class="battle-help-card095j"><small>ЯК ПРАЦЮЄ СУТИЧКА</small><h2>Зараз його не треба вбивати.</h2><p>За хід ви робите одну дію: відскакуєте, прикриваєтесь, кидаєте предмет або просите Євпапія відволікти цю херню.</p><p>Те, шо ви зробили перед сутичкою, реально міняє її.</p><p>ПЕРЕЖИВІТЬ 2 ХОДИ – І СТВОРІННЯ ЗʼЇБЕТЬСЯ.</p><button class="primary">ПОНЯВ. ДАВАЙ.</button></div>`
+      :`<div class="battle-help-card095j"><small>ЯК ПРАЦЮЄ БІЙ</small><h2>Тут уже треба трохи думати.</h2><p>За хід ви робите одну дію: бʼєте, відскакуєте, кидаєте предмет або використовуєте Євпапія.</p><p>Стани й попередні рішення реально міняють бій.</p><p>Якщо цю херню можна добити – добивайте. Якщо ні – задача буде написана прямо перед вами.</p><button class="primary">ПОНЯВ. ДАВАЙ.</button></div>`;
     o.querySelector('button').onclick=()=>{o.remove();resolve()};document.body.appendChild(o);
   });
 }
