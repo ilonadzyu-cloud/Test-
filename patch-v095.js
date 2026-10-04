@@ -160,10 +160,63 @@ function patchItems(){
   STATUS_DEFS.scared.blurb='Страшно капець. Але попустить.';
 }
 
+
+
+// v0.9.5n: first meeting with Baba Galya's cat is merged into the core story patch
+// instead of loading as a separate late module. This keeps startup simple and deterministic.
+const CAT095N={
+  base:'./cat_base_095m.png',
+  angry:'./cat_angry_095m.png',
+  shocked:'./cat_shocked_095m.png',
+  sideeye:'./cat_sideeye_095m.png',
+  loaf:'./cat_loaf_095m.png'
+};
+function patchCatMeeting095n(){
+  const S=CHAPTER3_SCENES;
+  if(!S?.ch3_galina_warning)return;
+  S.ch3_galina_warning.choices=[{id:'galina095_cat_next',label:'Встати й іти.',next:'ch3_cat_intro095n'}];
+  const cat=(src=CAT095N.base)=>({role:'npc cat095n',src,position:'npc'});
+  const catScene=(id,caption,heroSrc,catSrc,text,choices)=>({
+    ...hut,id,caption,actors:[hero(heroSrc),cat(catSrc)],text,choices
+  });
+  S.ch3_cat_intro095n=catScene(
+    'ch3_cat_intro095n','знайомство відбулось',A.hero.shrug,CAT095N.loaf,
+    `Ви встаєте й робите крок до дверей. Ногою за щось чіпляєтесь.\n\n– Блядь!\n\nЛедь не їбетесь об стіл, дивитесь вниз. На підлозі лежить здоровенний кіт. І те гамно риже навіть не поворухнулося.\n\nА дивиться на вас так, ніби ви сама прєзрєна людинка на світі. Просто король всіх лохів.\n\n– Баб Галь, а воно завжди ось так лежить посеред хати?\n\nБаба навіть не обертається.\n\n– А де йому ше лежати?\n\nВи дивитесь на кота. Кіт дивиться на вас. Схоже, знайомство відбулось.`,
+    [
+      {id:'cat095n_polite',label:'– Вибач, шановний.',next:'ch3_cat_polite095n',hiddenEffects:[{type:'flag',key:'catFirstMeeting',value:'polite'},{type:'flag',key:'catMet',value:true}]},
+      {id:'cat095n_insult',label:'– Сам винен, шо розлігся посеред хати.',next:'ch3_cat_insult095n',hiddenEffects:[{type:'flag',key:'catFirstMeeting',value:'insult'},{type:'flag',key:'catMet',value:true}]},
+      {id:'cat095n_pet',label:'Спробувати погладити.',next:'ch3_cat_pet095n',hiddenEffects:[{type:'flag',key:'catFirstMeeting',value:'petAttempt'},{type:'flag',key:'catMet',value:true}]}
+    ]
+  );
+  S.ch3_cat_polite095n=catScene(
+    'ch3_cat_polite095n','вибачились перед котом',A.hero.shrug,CAT095N.base,
+    `– Вибач, шановний.\n\nКіт дивиться на вас тією самою заєбаною пикою. Навіть не моргнув.\n\nНу ладно. Будемо вважати, шо вибачення прийнято.`,
+    [{id:'cat095n_polite_next',label:'Йти далі.',next:'ch3_evp_returns'}]
+  );
+  S.ch3_cat_insult095n=catScene(
+    'ch3_cat_insult095n','походу, нажили ворога',A.hero.annoyed,CAT095N.angry,
+    `– Сам винен, шо розлігся посеред хати.\n\nКіт повільно примружується. О. Походу, ви щойно нажили собі ще одного ворога.`,
+    [{id:'cat095n_insult_next',label:'Йти далі.',next:'ch3_evp_returns'}]
+  );
+  S.ch3_cat_pet095n=catScene(
+    'ch3_cat_pet095n','пальці ще пригодяться',A.hero.shocked,CAT095N.shocked,
+    `Ви тягнете руку. Кіт дивиться на неї так, ніби зараз хтось буде без пальців.\n\nВи руку забираєте. Ну його нахуй.`,
+    [{id:'cat095n_pet_next',label:'Йти далі.',next:'ch3_evp_returns'}]
+  );
+}
+function patchCatUi095n(){
+  if(document.querySelector('#patch095ncatcss'))return;
+  const style=document.createElement('style');style.id='patch095ncatcss';style.textContent=`
+    .stage-image .actor.cat095n{left:auto!important;right:3%!important;bottom:2%!important;width:42%!important;height:68%!important;max-width:none!important;max-height:none!important;object-fit:contain!important;object-position:right bottom!important;transform:none!important;z-index:3!important}
+    @media(max-width:760px){.stage-image .actor.cat095n{right:1%!important;width:44%!important;height:67%!important}}
+  `;document.head.appendChild(style);
+  for(const src of Object.values(CAT095N)){const img=new Image();img.decoding='async';img.src=src}
+}
+
 function stamp095(){document.querySelectorAll('.version,.howto-version,.game-name span').forEach(el=>el.textContent='v0.9.5')}
 
 function apply095(){
-  patchStatusCarry();patchPrayer();patchFinale();patchItems();patchArtAndUi();stamp095();
+  patchStatusCarry();patchPrayer();patchFinale();patchCatMeeting095n();patchItems();patchArtAndUi();patchCatUi095n();stamp095();
 }
 
 // ui-v085.js спочатку накладає v0.9.4, а цей патч уже поверх нього.
