@@ -1,4 +1,4 @@
-// v0.9.5 – combat + story battle + salo action when hungry.
+// v0.9.5f – combat + story battle + full TРУПОСМЕРД reaction art.
 import {createInitialState,normalizeState,effectiveStat,equipmentTotals,itemCount,removeItem,clone,addHeroXp,addEvpXp} from './engine.js?v=093';
 import {STATUS_DEFS} from './data.js?v=093';
 import {loadRun} from './storage.js?v=093';
@@ -31,6 +31,17 @@ const THROWABLES={
   onionSmelly:{id:'onion_smelly',name:'ВОНЮЧА ЦИБУЛЯ',icon:'🧅'},
   garlic:{id:'garlic',name:'ЧАСНИК',icon:'🧄'}
 };
+
+const CREATURE_ART_095F={
+  normal:'./creature_normal_095f.webp',attack:'./creature_attack_095f.webp',
+  hit:'./creature_hit_095f.webp',garlic:'./creature_garlic_battle_095f.webp',smelly:'./creature_smelly_095f.webp'
+};
+function setCreatureReaction(kind,ms=620){
+  if(battleKind!=='story'||battle?.storyId!=='shedCreature')return;
+  battle.enemyReaction=kind;battle.enemyReactionUntil=Date.now()+ms;
+}
+function reactionPending(){return Boolean(battle?.enemyReaction&&Number(battle.enemyReactionUntil||0)>Date.now())}
+function clearCreatureReaction(){if(!battle)return;battle.enemyReaction=null;battle.enemyReactionUntil=0}
 
 function ensureBattleCss(){
   if(document.querySelector('link[data-battle-css="095"]'))return;
@@ -92,7 +103,7 @@ function freshBattle(){
     turn:1,result:null,mode:'actions',phase:'hero',enemyTarget:null,enemyIntent:null,
     firstDamageAction:true,dodging:false,blindTurns:0,angryOnionTurns:0,stunTurns:0,
     pigeonThrown:false,pigeonUsed:false,pigeonTargetTurns:0,sunsetUsed:false,
-    lastImpact:'',impactKind:'',consumed:{},knifeDestroyed:false,
+    lastImpact:'',impactKind:'',consumed:{},knifeDestroyed:false,enemyReaction:null,enemyReactionUntil:0,
     pigeon:{level:evpSession.level,maxHp:evpSession.maxHp,hp:evpSession.hp,available:pigeonAvailable,recovering,retreated:false,offended:evpSession.offended},
     items:initialItems(),log:['ПОЧИНАЄТЬСЯ БІЙ']
   };
@@ -150,21 +161,32 @@ function startEnemyPhase(){
   battle.phase='enemy';battle.mode='enemy';battle.enemyTarget=prep.target;battle.lastImpact='';battle.impactKind='';renderBattle();clearPhaseTimer();
   phaseTimer=setTimeout(()=>{if(!battle||battle.result)return;const out=resolveEnemyAttack(prep.target,prep.intent);battle.phase='impact';renderBattle();if(overlay){overlay.classList.remove('hero-hit','pigeon-hit','enemy-miss');if(out.hit)overlay.classList.add(out.target==='pigeon'?'pigeon-hit':'hero-hit');else overlay.classList.add('enemy-miss')}phaseTimer=setTimeout(()=>{if(overlay)overlay.classList.remove('hero-hit','pigeon-hit','enemy-miss');finishTurnAfterEnemy()},720)},980);
 }
-function finishHeroAction(){if(checkEnd()){renderBattle();return}startEnemyPhase()}
-
-function triggerShedKnife(){
-  const dmg=physicalDamage(14);hurtEnemy(dmg,'Ніж');battle.knifeDestroyed=true;consume('knife',1);addLog('НІЖ ЗНИЩЕНО');
-  battle.mode='enemy';battle.phase='enemy';battle.lastImpact='';renderBattle();clearPhaseTimer();
-  phaseTimer=setTimeout(()=>{
-    const dmgHero=40;battle.heroHp=clamp(battle.heroHp-dmgHero,0,battle.heroMax);battle.lastImpact=`ВАМ -${dmgHero} HP`;battle.impactKind='hero';battle.phase='impact';addLog(`Вас вʼєбало об сарай: -${dmgHero} HP`);renderBattle();overlay?.classList.add('hero-hit');
-    phaseTimer=setTimeout(()=>{overlay?.classList.remove('hero-hit');battle.result=battle.heroHp<=0?'lose':'knockout';battle.mode='result';battle.phase='done';renderBattle()},850);
-  },850);
+function finishHeroAction(){
+  if(checkEnd()){renderBattle();return}
+  if(reactionPending()){
+    battle.mode='enemy';battle.phase='reaction';renderBattle();clearPhaseTimer();
+    const wait=Math.max(220,Number(battle.enemyReactionUntil||0)-Date.now());
+    phaseTimer=setTimeout(()=>{clearCreatureReaction();startEnemyPhase()},wait);return;
+  }
+  startEnemyPhase();
 }
 
-function actKnife(){const cost=energyCost(7);if(!spend(cost)){renderBattle();return}if(battleKind==='story'&&battle.storyId==='shedCreature')return triggerShedKnife();hurtEnemy(physicalDamage(14),'Ніж');finishHeroAction()}
+function triggerShedKnife(){
+  const dmg=physicalDamage(14);hurtEnemy(dmg,'Ніж');battle.knifeDestroyed=true;consume('knife',1);addLog('НІЖ ЗНИЩЕНО');setCreatureReaction('hit',620);
+  battle.mode='enemy';battle.phase='reaction';battle.lastImpact='';renderBattle();clearPhaseTimer();
+  phaseTimer=setTimeout(()=>{
+    clearCreatureReaction();battle.phase='enemy';renderBattle();
+    phaseTimer=setTimeout(()=>{
+      const dmgHero=40;battle.heroHp=clamp(battle.heroHp-dmgHero,0,battle.heroMax);battle.lastImpact=`ВАМ -${dmgHero} HP`;battle.impactKind='hero';battle.phase='impact';addLog(`Вас вʼєбало об сарай: -${dmgHero} HP`);renderBattle();overlay?.classList.add('hero-hit');
+      phaseTimer=setTimeout(()=>{overlay?.classList.remove('hero-hit');battle.result=battle.heroHp<=0?'lose':'knockout';battle.mode='result';battle.phase='done';renderBattle()},850);
+    },700);
+  },620);
+}
+
+function actKnife(){const cost=energyCost(7);if(!spend(cost)){renderBattle();return}if(battleKind==='story'&&battle.storyId==='shedCreature')return triggerShedKnife();hurtEnemy(physicalDamage(14),'Ніж');setCreatureReaction('hit');finishHeroAction()}
 function actDodge(){const cost=energyCost(hasStatus('hangover')?10:8);if(!spend(cost)){renderBattle();return}battle.dodging=true;addLog('Ви готуєтесь відскочити.');finishHeroAction()}
-function actPigeon(){if(!battle.pigeon.available)return;const cost=energyCost(10);if(!spend(cost)){renderBattle();return}battle.pigeonThrown=true;battle.pigeonUsed=true;battle.pigeonTargetTurns=1;const ep=sourceState?.companions?.evpapiy?.progression||{};const dmg=8+Number(ep.attack||1)*2+Number(ep.aggression||1);hurtEnemy(dmg,'Євпапій');finishHeroAction()}
-function actSunset(){if(!battle.pigeon.available)return;const cost=energyCost(6);if(!spend(cost)){renderBattle();return}battle.sunsetUsed=true;battle.pigeonUsed=true;battle.pigeonTargetTurns=1;hurtEnemy(Math.max(1,Math.ceil(battle.enemyHp/2)),'ЗАКАТ ПРЄЗРЄНІЯ');finishHeroAction()}
+function actPigeon(){if(!battle.pigeon.available)return;const cost=energyCost(10);if(!spend(cost)){renderBattle();return}battle.pigeonThrown=true;battle.pigeonUsed=true;battle.pigeonTargetTurns=1;const ep=sourceState?.companions?.evpapiy?.progression||{};const dmg=8+Number(ep.attack||1)*2+Number(ep.aggression||1);hurtEnemy(dmg,'Євпапій');setCreatureReaction('hit');finishHeroAction()}
+function actSunset(){if(!battle.pigeon.available)return;const cost=energyCost(6);if(!spend(cost)){renderBattle();return}battle.sunsetUsed=true;battle.pigeonUsed=true;battle.pigeonTargetTurns=1;hurtEnemy(Math.max(1,Math.ceil(battle.enemyHp/2)),'ЗАКАТ ПРЄЗРЄНІЯ');setCreatureReaction('hit');finishHeroAction()}
 function actHeal(){if(Number(battle.items.medkit||0)<=0||battle.heroHp>=battle.heroMax)return;battle.items.medkit-=1;consume('medkit',1);const before=battle.heroHp;battle.heroHp=clamp(battle.heroHp+25,0,battle.heroMax);addLog(`Аптечка: +${battle.heroHp-before} HP`);battle.mode='actions';finishHeroAction()}
 function actEatSalo(){
   if(!hasStatus('hungry')||Number(battle.items.salo||0)<=0)return;
@@ -182,10 +204,10 @@ function actEatSalo(){
 function actItem(key){
   const cost=energyCost(4);if(!spend(cost)){renderBattle();return}if(!battle.items[key])return;
   battle.items[key]-=1;consume(THROWABLES[key].id,1);
-  if(key==='onion'){hurtEnemy(5,'Звичайна цибуля');battle.blindTurns=1;addLog('Погано бачить 1 хід')}
-  else if(key==='onionAngry'){hurtEnemy(7,'Зла цибуля');battle.angryOnionTurns=3;addLog('Вгризлась · -4 HP ще 3 ходи')}
-  else if(key==='onionSmelly'){battle.stunTurns=2;addLog('Вонюча цибуля: ворог вирубився · у вас 2 ходи')}
-  else if(key==='garlic'){hurtEnemy(battle.storyId==='shedCreature'?20:8,'Часник');addLog(battle.storyId==='shedCreature'?'Часник припік нормально.':'Часник прилетів.')}
+  if(key==='onion'){hurtEnemy(5,'Звичайна цибуля');battle.blindTurns=1;addLog('Погано бачить 1 хід');setCreatureReaction('hit')}
+  else if(key==='onionAngry'){hurtEnemy(7,'Зла цибуля');battle.angryOnionTurns=3;addLog('Вгризлась · -4 HP ще 3 ходи');setCreatureReaction('hit')}
+  else if(key==='onionSmelly'){battle.stunTurns=2;addLog('Вонюча цибуля: ворог вирубився · у вас 2 ходи');setCreatureReaction('smelly',760)}
+  else if(key==='garlic'){hurtEnemy(battle.storyId==='shedCreature'?20:8,'Часник');addLog(battle.storyId==='shedCreature'?'Часник припік нормально.':'Часник прилетів.');setCreatureReaction('garlic',760)}
   battle.mode='actions';finishHeroAction();
 }
 
@@ -259,7 +281,12 @@ function renderBattle(){
   const copy=intentCopy();overlay.querySelector('[data-intent-label]').textContent=copy.label;overlay.querySelector('[data-intent-text]').textContent=copy.text;
   const impact=overlay.querySelector('[data-impact]');impact.textContent=battle.lastImpact||'';impact.className=`battle-impact ${battle.phase==='impact'||battle.phase==='enemy-resolve'?'show':''} ${battle.impactKind||''}`;
   const art=overlay.querySelector('[data-enemy-art]'),placeholder=overlay.querySelector('[data-enemy-placeholder]');
-  const src=battleKind==='story'&&battle.storyId==='shedCreature'?(battle.enemyWasHit?'./creature_battle_095c.webp':'./creature_normal_095c.webp'):(battle.phase==='enemy'&&battle.enemyAttackArt?battle.enemyAttackArt:battle.enemyArt);
+  let src;
+  if(battleKind==='story'&&battle.storyId==='shedCreature'){
+    if(battle.phase==='reaction'&&battle.enemyReaction)src=CREATURE_ART_095F[battle.enemyReaction]||CREATURE_ART_095F.hit;
+    else if(battle.phase==='enemy'||battle.phase==='impact')src=CREATURE_ART_095F.attack;
+    else src=CREATURE_ART_095F.normal;
+  }else src=(battle.phase==='enemy'&&battle.enemyAttackArt?battle.enemyAttackArt:battle.enemyArt);
   if(src){art.src=src;art.classList.remove('hidden');placeholder.classList.add('hidden')}else{art.removeAttribute('src');art.classList.add('hidden');placeholder.classList.remove('hidden')}
   overlay.classList.toggle('enemy-attacking',battle.phase==='enemy');overlay.classList.toggle('target-pigeon',battle.phase==='enemy'&&battle.enemyTarget==='pigeon');overlay.classList.toggle('target-hero',battle.phase==='enemy'&&battle.enemyTarget==='hero');
   overlay.querySelectorAll('[data-battle-action]').forEach(btn=>btn.onclick=()=>handleAction(btn.dataset.battleAction));
@@ -313,7 +340,7 @@ async function openBattleTest(runId=currentRunId()){
 }
 
 export async function openStoryBattle(state,options={}){
-  ensureBattleCss();makeOverlay();clearPhaseTimer();battleKind='story';storyOptions={enemyName:'ТРУПОСМЕРД',enemyMax:100,enemyHp:100,enemyArt:'./creature_normal_095c.webp',enemyAttackArt:'./creature_normal_095c.webp',lockVictory:true,...options};sourceState=normalizeState(clone(state));syncEvpapiySession();battle=freshBattle();overlay.classList.remove('hidden');overlay.setAttribute('aria-hidden','false');document.body.classList.add('battle-open');renderBattle();return new Promise(resolve=>{storyResolver=resolve});
+  ensureBattleCss();makeOverlay();clearPhaseTimer();battleKind='story';storyOptions={enemyName:'ТРУПОСМЕРД',enemyMax:100,enemyHp:100,enemyArt:CREATURE_ART_095F.normal,enemyAttackArt:CREATURE_ART_095F.attack,lockVictory:true,...options};sourceState=normalizeState(clone(state));syncEvpapiySession();battle=freshBattle();overlay.classList.remove('hidden');overlay.setAttribute('aria-hidden','false');document.body.classList.add('battle-open');renderBattle();return new Promise(resolve=>{storyResolver=resolve});
 }
 
 function closeOverlay(resetKind=true){clearPhaseTimer();if(!overlay)return;overlay.classList.add('hidden');overlay.setAttribute('aria-hidden','true');overlay.classList.remove('enemy-attacking','target-pigeon','target-hero','hero-hit','pigeon-hit','enemy-miss','story-mode');document.body.classList.remove('battle-open');if(resetKind){battleKind='test';storyOptions=null}}
