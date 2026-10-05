@@ -90,7 +90,7 @@ function syncEvpapiySession(){
   }else{evpSession.level=level;evpSession.maxHp=maxHp;evpSession.hp=clamp(evpSession.hp,1,maxHp)}
 }
 
-function energyCost(base){let extra=0;if(hasStatus('tired'))extra+=2;if(hasStatus('overheated'))extra+=2;if(hasStatus('thirsty'))extra+=1;return Math.max(0,base+extra)}
+function energyCost(base){let extra=0;if(hasStatus('tired'))extra+=2;if(Number(sourceState?.needs?.water||100)<=20)extra+=1;return Math.max(0,base+extra)}
 function randomIntent(b){if(b?.pigeon?.available&&Math.random()<.14)return{...INTENTS.pigeon};const pool=[INTENTS.lunge,INTENTS.grab,INTENTS.heavy,INTENTS.sweep];return{...pool[Math.floor(Math.random()*pool.length)]}}
 
 function initialItems(){
@@ -133,7 +133,7 @@ function freshBattle(){
 
 function addLog(text){if(!text)return;battle.log.push(text);battle.log=battle.log.slice(-3)}
 function spend(cost){if(battle.heroEnergy<cost){addLog('Не вистачає бадьорості.');return false}battle.heroEnergy=clamp(battle.heroEnergy-cost,0,100);return true}
-function physicalDamage(base){let damage=base+Math.floor(heroStat('strength')*.45);if(hasStatus('hungry'))damage=Math.max(1,Math.round(damage*.85));if(hasStatus('hangover')&&battle.firstDamageAction)damage=Math.max(1,Math.round(damage*.75));damage=Math.max(1,Math.round(damage*Number(battle?.heroDamageMult||1)));battle.firstDamageAction=false;return damage}
+function physicalDamage(base){let damage=base+Math.floor(heroStat('strength')*.45);if(Number(sourceState?.needs?.satiety||100)<=20)damage=Math.max(1,Math.round(damage*.85));if(hasStatus('hangover')&&battle.firstDamageAction)damage=Math.max(1,Math.round(damage*.75));damage=Math.max(1,Math.round(damage*Number(battle?.heroDamageMult||1)));battle.firstDamageAction=false;return damage}
 function hurtEnemy(amount,label){const n=Math.max(0,Math.round(amount)),before=battle.enemyHp,floor=battleKind==='story'&&battle.lockVictory?1:0;battle.enemyHp=clamp(battle.enemyHp-n,floor,battle.enemyMax);const actual=Math.max(0,before-battle.enemyHp);if(actual>0)battle.enemyWasHit=true;addLog(`${label}: -${actual} HP`);return actual}
 function consume(key,qty=1){battle.consumed[key]=(battle.consumed[key]||0)+qty}
 
@@ -220,13 +220,11 @@ function actPigeon(){if(!battle.pigeon.available)return;const cost=energyCost(10
 function actSunset(){if(!battle.pigeon.available)return;const cost=energyCost(6);if(!spend(cost)){renderBattle();return}battle.sunsetUsed=true;battle.pigeonUsed=true;battle.pigeonTargetTurns=1;hurtEnemy(Math.max(1,Math.ceil(battle.enemyHp/2)),'ЗАКАТ ПРЄЗРЄНІЯ');setCreatureReaction('hit');finishHeroAction()}
 function actHeal(){if(Number(battle.items.medkit||0)<=0||battle.heroHp>=battle.heroMax)return;battle.items.medkit-=1;consume('medkit',1);const before=battle.heroHp;battle.heroHp=clamp(battle.heroHp+25,0,battle.heroMax);addLog(`Аптечка: +${battle.heroHp-before} HP`);battle.mode='actions';finishHeroAction()}
 function actEatSalo(){
-  if(!hasStatus('hungry')||Number(battle.items.salo||0)<=0)return;
+  if(Number(sourceState?.needs?.satiety||100)>40||Number(battle.items.salo||0)<=0)return;
   battle.items.salo-=1;consume('salo',1);
   sourceState.needs=sourceState.needs||{};
   sourceState.needs.satiety=clamp(Number(sourceState.needs.satiety||0)+25,0,100);
   if(sourceState.needs.satiety>40){
-    sourceState.activeStatuses=(sourceState.activeStatuses||[]).filter(id=>id!=='hungry');
-    if(sourceState.statusTimers)delete sourceState.statusTimers.hungry;
     addLog('Ви зʼїли сало. ГОЛОДНИЙ знято.');
   }else addLog('Ви зʼїли сало. Полегшало, але ви все ще голодний.');
   battle.mode='actions';finishHeroAction();
@@ -254,7 +252,7 @@ function actItem(key){
   battle.mode='actions';finishHeroAction();
 }
 
-function battleStatusEffect(id){const map={hangover:'перша атака слабша · відскок дорожчий',scared:'уважність +2 · спритність +1 · похуїзм -2',wet:'одяг мокрий · холод дістає швидше',cold:'спритність -1',overheated:'бадьорість витрачається швидше',tired:'бадьорість витрачається швидше · спритність -1',hungry:'фізичний урон слабший',thirsty:'бадьорість витрачається швидше',angry:'сила +2 · похуїзм +1 · харизма -2',suspicious:'точніше бачите, що готує ворог',skunk:'ворог -3 HP/хід · може зірвати атаку',tipsy:'похуїзм +2 · харизма +1 · уважність -1 · спритність -1',headInjury:'важче прочитати атаку · уважність -1 · спритність -1',bump:'уважність -1',cowLicked:'усі характеристики +5',blessed:'негативні модифікатори станів слабші на 1',yebatorium:'уважність +1 · похуїзм +1 · ахуй +1',pigeonHumiliated:'харизма -1 · похуїзм +1'};if(map[id])return map[id];const d=STATUS_DEFS[id],parts=[];for(const [k,v] of Object.entries(d?.mods||{}))if(v)parts.push(`${k} ${v>0?'+':''}${v}`);return parts.join(' · ')||'активний стан'}
+function battleStatusEffect(id){const map={hangover:'перша атака слабша · відскок дорожчий',scared:'уважність +2 · спритність +1 · похуїзм -2',tired:'дії коштують більше бадьорості · спритність -1',angry:'сила +2 · похуїзм +1 · харизма -2',suspicious:'точніше бачите, що готує ворог',skunk:'ворог -3 HP/хід · може зірвати атаку',tipsy:'похуїзм +2 · харизма +1 · уважність -1 · спритність -1',yebatorium:'уважність +1 · похуїзм +1 · ахуй +1',pigeonHumiliated:'харизма -1 · похуїзм +1'};if(map[id])return map[id];const d=STATUS_DEFS[id],parts=[];for(const [k,v] of Object.entries(d?.mods||{}))if(v)parts.push(`${k} ${v>0?'+':''}${v}`);return parts.join(' · ')||'активний стан'}
 function statusChips(){const ids=(sourceState?.activeStatuses||[]).filter(id=>STATUS_DEFS[id]);if(!ids.length)return'<span class="battle-no-state">СТАНІВ НЕМА</span>';return ids.map(id=>`<span class="battle-state-chip"><b>${esc(STATUS_DEFS[id].name)}</b><small>${esc(battleStatusEffect(id))}</small></span>`).join('')}
 function enemyEffects(){const out=[];if(battle.blindTurns>0)out.push(`ПОГАНО БАЧИТЬ · ${battle.blindTurns} ХІД`);if(battle.angryOnionTurns>0)out.push(`ЗЛА ЦИБУЛЯ ВГРИЗЛАСЬ · -4 HP/ХІД · ${battle.angryOnionTurns} ХОД.`);if(battle.stunTurns>0)out.push(`ВИРУБИВСЯ · ${battle.stunTurns} ХОД.`);if(hasStatus('skunk'))out.push('СКУНС · -3 HP/ХІД');return out}
 function actionButton(label,action,{disabled=false,extra=''}={}){return `<button type="button" class="battle-action ${extra}" data-battle-action="${action}" ${disabled?'disabled':''}>${esc(label)}</button>`}
@@ -287,7 +285,7 @@ function renderActionArea(){
     ${actionButton('ВІДСКОЧИТИ','dodge',{disabled:battle.heroEnergy<dodgeCost})}
     ${actionButton('КИНУТИ ПРЕДМЕТ','items',{disabled:!availableThrowables().length||battle.heroEnergy<energyCost(4)})}
     ${Number(battle.items.medkit||0)>0?actionButton(`ЛІКУВАТИСЬ · 🩹 ×${battle.items.medkit}`,'heal',{disabled:battle.heroHp>=battle.heroMax}):''}
-    ${hasStatus('hungry')&&Number(battle.items.salo||0)>0?actionButton(`ЗʼЇСТИ САЛО · 🥓 ×${battle.items.salo}`,'eat-salo'):''}
+    ${Number(sourceState?.needs?.satiety||100)<=40&&Number(battle.items.salo||0)>0?actionButton(`ЗʼЇСТИ САЛО · 🥓 ×${battle.items.salo}`,'eat-salo'):''}
     ${pigeonAvailable&&!battle.pigeonThrown?actionButton('КИНУТИ ЄВПАПІЄМ','pigeon',{disabled:battle.heroEnergy<pigeonCost}):''}
     ${pigeonAvailable&&!battle.sunsetUsed&&(battleKind==='test'||sourceState?.unlocks?.sunsetContempt)?actionButton('ЗАКАТ ПРЄЗРЄНІЯ','sunset',{disabled:battle.heroEnergy<sunsetCost,extra:'special'}):''}
   </div>`;
@@ -310,7 +308,6 @@ function preBattleNotesHtml(){
 }
 function renderPigeonCard(){const card=overlay?.querySelector('[data-pigeon-card]');if(!card)return;const p=battle.pigeon,pct=p.available?Math.round(clamp(p.hp/p.maxHp*100,0,100)):0;card.classList.toggle('unavailable',!p.available);card.classList.toggle('recovering',p.recovering);card.querySelector('[data-pigeon-state]').textContent=p.recovering?'ЛІКУЄТЬСЯ':p.retreated?'ВИЙШОВ З БОЮ':`РІВ. ${p.level}`;card.querySelector('[data-pigeon-hp]').textContent=p.available?`❤️ ${pct}%`:'❤️ –';card.querySelector('[data-pigeon-real-hp]').textContent=p.available?`${p.hp}/${p.maxHp}`:''}
 function readableIntent(intent){
-  if(hasStatus('headInjury'))return'Через розбиту голову важко зрозуміти, шо воно робить.';
   if(hasStatus('suspicious'))return intent.hint;
   if(intent.id==='pigeon')return'Воно дивиться в бік Євпапія.';
   if(intent.id==='heavy')return'Воно заносить руки над головою.';
