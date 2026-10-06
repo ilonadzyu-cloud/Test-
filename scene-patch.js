@@ -1,23 +1,23 @@
 // v0.9.4 – shorter story pages + new hero/creature reaction art.
-import {CHAPTER2_SCENES} from './chapter2.js?v=093';
-import {CHAPTER3_SCENES} from './chapter3.js?v=093';
+import {CHAPTER2_SCENES} from './chapter2.js?v=096b';
+import {CHAPTER3_SCENES} from './chapter3.js?v=096b';
 
 const H={
-  shrug:'./hero_shrug.jpeg',
-  annoyed:'./hero_annoyed.jpeg',
-  laugh:'./hero_laugh.jpeg',
-  shocked:'./hero_shocked.jpeg',
-  worried:'./hero_worried.png'
+  shrug:'./hero_shrug_096.png',
+  annoyed:'./hero_angry_096.png',
+  laugh:'./hero_laugh_096.png',
+  shocked:'./hero_shocked_096.png',
+  worried:'./hero_worry_096.png'
 };
 const C={
-  base:'./creature_base_v2.png',
-  attack:'./creature_attack_v2.png',
-  angry:'./creature_angry_v2.jpeg',
-  garlic:'./creature_garlic_v2.png',
-  vodka:'./creature_vodka_v2.png',
-  burn:'./creature_burn_v2.png',
-  onion:'./creature_onion_v2.png',
-  critical:'./creature_critical_v2.png'
+  base:'./creature_normal_095f.webp',
+  attack:'./creature_attack_095f.webp',
+  angry:'./creature_attack_095f.webp',
+  garlic:'./creature_garlic_story_095f.webp',
+  vodka:'./creature_vodka_095f.webp',
+  burn:'./creature_garlic_battle_095f.webp',
+  onion:'./creature_smelly_095f.webp',
+  critical:'./creature_battle_095c.webp'
 };
 const hero=(src=H.shrug,position='hero')=>({role:'hero',src,position});
 const pigeon=(src='./pigeon_base.png',position='pigeon')=>({role:'pigeon',src,position});
@@ -56,7 +56,6 @@ function splitScene(book,id,parts){
 
 function patchChapter2(){
   const S=CHAPTER2_SCENES;
-  // New hero set everywhere in chapter 2.
   const actorMap={
     ch2_intro:H.shrug,ch2_fence:H.annoyed,ch2_real:H.shocked,ch2_crowd:H.annoyed,
     ch2_legend:H.shrug,ch2_benchask:H.annoyed,ch2_bench:H.worried,ch2_table:H.shrug,
@@ -119,8 +118,6 @@ function patchChapter2(){
     {actors:[hero(H.worried)],text:`Ви собі далі спокійно відливаєте, коли десь зовсім поруч:\n\nБАХ.\n\nВи завмираєте, але через секунду продовжуєте. Мало лі шо там впало.`},
     {actors:[hero(H.shocked)],text:`Ще раз.\n\nБАХ.\n\nЦього разу сильніше.\n\n– Блядь…`}
   ]);
-
-  // Each BANG now lands on the page where it is shown.
   if(S.ch2_bang)S.ch2_bang.sfxOnEnter=[{id:'bang',delay:350}];
   if(S.ch2_bang_p2)S.ch2_bang_p2.sfxOnEnter=[{id:'bang',delay:350}];
 
@@ -156,7 +153,6 @@ function patchChapter2(){
 
 function patchChapter3(){
   const S=CHAPTER3_SCENES;
-  // Story creature art – all old crooked versions replaced.
   if(S.ch3_creature)S.ch3_creature.actors=[hero(H.shocked),creature(C.base)];
   if(S.ch3_vodka)S.ch3_vodka.actors=[hero(H.shrug),creature(C.vodka)];
   if(S.ch3_garlic)S.ch3_garlic.actors=[hero(H.shrug),creature(C.garlic)];
@@ -231,7 +227,6 @@ function patchChapter3(){
     {actors:[hero(H.shrug),pigeon()],text:`Поруч у траві лежить старий ключ.\n\nВи підбираєте його.`}
   ]);
 
-  // Story battle uses the new creature set too, including split continuation pages.
   for(const scene of Object.values(S)){
     const choices=Array.isArray(scene?.choices)?scene.choices:[];
     for(const c of choices)if(c?.battle?.id==='shedCreature'){c.battle.enemyArt=C.base;c.battle.enemyAttackArt=C.attack;}

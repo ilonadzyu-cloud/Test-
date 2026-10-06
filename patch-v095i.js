@@ -9,7 +9,7 @@ const P095I_ASSETS=[
   './onion_angry_095.webp','./onion_normal_095.webp','./onion_smelly_095.webp',
   './pigeon_angry_095b.webp','./pigeon_attack_095.webp','./pigeon_base_095b.webp','./pigeon_confused_095b.webp','./pigeon_gasp_095b.webp',
   './pigeon_perch_095b.webp','./pigeon_salo_095.webp','./pigeon_serious.png','./pigeon_sideeye_095b.webp','./pigeon_smug_095.webp',
-  './pigeon_talk_095b.webp','./wake_table_095c.webp','./ch2_unknown_v2.png','./creature_base_v2.png','./hero-face.png'
+  './pigeon_talk_095b.webp','./wake_table_095c.webp','./ch2_unknown_v2.png','./creature_normal_095f.webp','./hero-face.png'
 ];
 
 const loaded095i=new Map();

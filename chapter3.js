@@ -1,10 +1,10 @@
-import {ITEM_DEFS} from './data.js?v=093';
+import {ITEM_DEFS} from './data.js?v=096b';
 
 const img=n=>`./${n}`;
 const hero=(name='ch2_hero_scared.png',position='hero')=>({role:'hero',src:img(name),position});
 const pigeon=(name='pigeon_base.png',position='pigeon')=>({role:'pigeon',src:img(name),position});
 const hood=()=>({role:'npc face-left',src:img('ch2_unknown_v2.png'),position:'npc'});
-const creature=(name='creature_base.png',position='npc')=>({role:'npc',src:img(name),position});
+const creature=(name='creature_normal_095f.webp',position='npc')=>({role:'npc',src:img(name),position});
 const galina=()=>({role:'npc',src:img('galina_base.png'),position:'npc'});
 const shed={background:img('ch2_shed.jpg'),atmosphere:'village',chapter:3,world:[{type:'world',key:'environment',value:'outdoors'},{type:'world',key:'location',value:'біля сараю'}]};
 
@@ -114,7 +114,7 @@ export const CHAPTER3_SCENES={
   },
 
   ch3_creature:{
-    ...shed,id:'ch3_creature',caption:'воно вилізло',actors:[hero(),creature('creature_base.png')],
+    ...shed,id:'ch3_creature',caption:'воно вилізло',actors:[hero(),creature('creature_normal_095f.webp')],
     text:`З темряви повільно вилазить щось брудне, засмальцьоване, вонюче і потне. Вилитий дід Толік після триденного юбілею.`,
     choices:s=>{
       const out=[];
@@ -128,7 +128,7 @@ export const CHAPTER3_SCENES={
   },
 
   ch3_vodka:{
-    ...shed,id:'ch3_vodka',caption:'ну будеш?',actors:[hero('ch2_hero_side.png'),creature('creature_vodka.png')],
+    ...shed,id:'ch3_vodka',caption:'ну будеш?',actors:[hero('ch2_hero_side.png'),creature('creature_vodka_095f.webp')],
     onEnter:[{type:'itemRemove',id:'vodka',qty:1},{type:'relationship',person:'creature',key:'attitude',value:5},{type:'flag',key:'creatureVodkaFriend',value:true},{type:'flag',key:'creatureRescueAvailable',value:true}],
     text:`Ви дістаєте горілку.
 
@@ -161,7 +161,7 @@ export const CHAPTER3_SCENES={
   },
 
   ch3_garlic:{
-    ...shed,id:'ch3_garlic',caption:'народна медицина',actors:[hero('ch2_hero_side.png'),creature('creature_garlic.png')],
+    ...shed,id:'ch3_garlic',caption:'народна медицина',actors:[hero('ch2_hero_side.png'),creature('creature_garlic_story_095f.webp')],
     onEnter:[{type:'itemRemove',id:'garlic',qty:1},{type:'flag',key:'creatureGarlicUsed',value:true}],
     text:`– Ну давай, сука. Не підведи.
 
@@ -195,7 +195,7 @@ export const CHAPTER3_SCENES={
   },
 
   ch3_garlic_hit:{
-    ...shed,id:'ch3_garlic_hit',caption:'ну от',actors:[hero('ch2_hero_scared.png'),creature('creature_attack.png')],
+    ...shed,id:'ch3_garlic_hit',caption:'ну от',actors:[hero('ch2_hero_scared.png'),creature('creature_attack_095f.webp')],
     onEnter:[{type:'damage',amount:10,ignoreArmor:true}],
     text:`Створіння різко кидається вперед. Ви встигаєте відскочити, але воно чіпляє вас за плече й кидає на землю.
 
@@ -225,7 +225,7 @@ export const CHAPTER3_SCENES={
   },
 
   ch3_run:{
-    ...shed,id:'ch3_run',caption:'погана ідея',actors:[hero('ch2_hero_scared.png'),creature('creature_attack.png')],
+    ...shed,id:'ch3_run',caption:'погана ідея',actors:[hero('ch2_hero_scared.png'),creature('creature_attack_095f.webp')],
     onEnter:[{type:'health',value:-100},{type:'flag',key:'diedRunningFromShed',value:true}],
     text:`Ви вирішуєте, що з вас досить.
 
@@ -276,7 +276,7 @@ export const CHAPTER3_SCENES={
   },
 
   ch3_wakeup:{
-    ...shed,id:'ch3_wakeup',caption:'очухались',actors:[hero('hero_injured.png'),pigeon('pigeon_base.png')],
+    ...shed,id:'ch3_wakeup',caption:'очухались',actors:[hero('hero_injured_096.png'),pigeon('pigeon_base.png')],
     onEnter:s=>{
       const out=[{type:'statusAdd',id:'headInjury'},{type:'flag',key:'shedKnifeDestroyed',value:true},{type:'flag',key:'shedBattleKnockout',value:true}];
       if(itemCount(s,'knife')>0)out.push({type:'itemRemove',id:'knife',qty:1});
@@ -307,7 +307,7 @@ export const CHAPTER3_SCENES={
   },
 
   ch3_galina:{
-    ...shed,id:'ch3_galina',caption:'баба галя',actors:s=>[hero(s.activeStatuses?.includes('headInjury')?'hero_injured.png':'ch2_hero_local.png'),galina()],
+    ...shed,id:'ch3_galina',caption:'баба галя',actors:s=>[hero(s.activeStatuses?.includes('headInjury')?'hero_injured_096.png':'ch2_hero_local.png'),galina()],
     onEnter:[{type:'flag',key:'chapter3PreviewEnd',value:true}],
     text:s=>s.activeStatuses?.includes('headInjury')?`Ви ще крутите ключ у руці, коли з-за рогу зʼявляється баба Галя. Дивиться на вас, на кров на потилиці, на сарай. Обличчя міняється буквально на секунду, але потім знов стає таким, ніби нічого особливого не сталося.
 
@@ -352,7 +352,7 @@ export const CHAPTER3_SCENES={
   ch3_branch_pending:{
     ...shed,id:'ch3_branch_pending',caption:'ця гілка ще росте',actors:[hero(),pigeon('pigeon_base.png')],
     text:`На цьому місці третя глава поки обривається.`,
-    notice:{title:'ПРОДОВЖЕННЯ ТРЕТЬОЇ ГЛАВИ БУДЕ...',body:'Наслідок збережено.'},
+    notice:{title:'ПРОДОВЖЕННЯ ТРЕТЬОЇ ГЛАВИ БУДЕ...',body:'Це ше може вилізти боком.'},
     end:true,choices:[]
   }
 };

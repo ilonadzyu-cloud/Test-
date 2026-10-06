@@ -1,6 +1,6 @@
-import {CHAPTER2_SCENES} from './chapter2.js?v=093';
-import {CHAPTER3_SCENES} from './chapter3.js?v=093';
-import {ITEM_DEFS,STATUS_DEFS} from './data.js?v=093';
+import {CHAPTER2_SCENES} from './chapter2.js?v=096b';
+import {CHAPTER3_SCENES} from './chapter3.js?v=096b';
+import {ITEM_DEFS,STATUS_DEFS} from './data.js?v=096b';
 
 const A={
   hero:{
@@ -12,7 +12,7 @@ const A={
 const hero=(src=A.hero.shrug,position='hero')=>({role:'hero',src,position});
 const pigeon=(src=A.pigeon.smug,position='pigeon')=>({role:'pigeon',src,position});
 const hood=()=>({role:'npc face-left',src:'./ch2_unknown_v2.png',position:'npc'});
-const creature=(src='./creature_base_v2.png',position='npc')=>({role:'npc',src,position});
+const creature=(src='./creature_normal_095f.webp',position='npc')=>({role:'npc',src,position});
 const galina=()=>({role:'npc',src:'./galina_base.png',position:'npc'});
 const bg=n=>`./${n}`;
 const shed={background:bg('ch2_shed.jpg'),atmosphere:'village',chapter:3,world:[{type:'world',key:'environment',value:'outdoors'},{type:'world',key:'location',value:'біля сараю'}]};
