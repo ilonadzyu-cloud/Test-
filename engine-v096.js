@@ -1,8 +1,7 @@
-// v0.9.7 engine wrapper – chapter 4 + status/save fixes.
-export * from './engine.js?core=093';
-import * as core from './engine.js?core=093';
-import {STAT_KEYS} from './config.js?v=093';
-import {STATUS_DEFS,CLOTHES,ITEM_DEFS} from './data.js?v=093';
+export * from './engine.js?core=096b';
+import * as core from './engine.js?core=096b';
+import {STAT_KEYS} from './config.js?v=096b';
+import {STATUS_DEFS,CLOTHES,ITEM_DEFS} from './data.js?v=096b';
 
 const ALLOWED_STATUSES=new Set([
   'hangover','pigeonHumiliated','suspicious','scared','angry',
@@ -13,9 +12,8 @@ const EARLY_CH3=new Set([
   'ch3_vodka','ch3_garlic','ch3_garlic_hit','ch3_ask_pigeon','ch3_run','ch3_pray'
 ]);
 
-const clone=x=>JSON.parse(JSON.stringify(x));
 function dayOf(totalMinutes){return Math.floor(Math.max(0,Number(totalMinutes||0))/1440)+1}
-function ensureDiscovered(s,id){s.discoveredStatuses=Array.isArray(s.discoveredStatuses)?s.discoveredStatuses:[];if(!s.discoveredStatuses.includes(id))s.discoveredStatuses.push(id)}
+function ensureDiscovered(s,id){if(!s.discoveredStatuses.includes(id))s.discoveredStatuses.push(id)}
 function cleanStatuses(s){
   s.activeStatuses=(s.activeStatuses||[]).filter(id=>ALLOWED_STATUSES.has(id));
   s.discoveredStatuses=(s.discoveredStatuses||[]).filter(id=>ALLOWED_STATUSES.has(id));
@@ -28,35 +26,6 @@ function setActive(s,id,on,events=[]){
   if(on&&!had){s.activeStatuses.push(id);ensureDiscovered(s,id);events.push({type:'statusAdded',id,visible:false})}
   else if(!on&&had){s.activeStatuses=s.activeStatuses.filter(x=>x!==id);delete s.statusTimers[id];events.push({type:'statusRemoved',id,visible:false})}
   return events;
-}
-function chapterFromState(raw){
-  const scene=String(raw?.story?.sceneId||raw?.scene||'');
-  if(scene.startsWith('ch4_')||Number(raw?.story?.chapter||raw?.chapter||0)>=4)return 4;
-  return Number(raw?.story?.chapter||raw?.chapter||1);
-}
-function forceChapter(s,raw){
-  if(chapterFromState(raw)>=4){s.chapter=4;s.story={...(s.story||{}),chapter:4};}
-  return s;
-}
-function ensureRelationship(s,id,name,values={}){
-  s.relationships=s.relationships||{};
-  const old=s.relationships[id]||{};
-  s.relationships[id]={name,known:Boolean(old.known),values:{...values,...(old.values||{})},discoveredParams:Array.isArray(old.discoveredParams)?old.discoveredParams:[]};
-}
-function syncKnownPeople(s){
-  const entered=new Set(s.story?.entered||[]);
-  ensureRelationship(s,'evpapiy','Євпапій',{trust:2,offense:4,greed:8,bullshit:6});
-  ensureRelationship(s,'galina','Баба Галя',{trust:5,offense:0});
-  ensureRelationship(s,'creature','ТРУПОСМЕРД',{attitude:0});
-  ensureRelationship(s,'hood','Постать',{trust:0,offense:0});
-  ensureRelationship(s,'cat','Риже гамно',{trust:0,offense:0});
-  ensureRelationship(s,'semen','Семен',{trust:0,offense:0});
-  if(s.flags?.metPigeon||entered.has('poop'))s.relationships.evpapiy.known=true;
-  if(s.relationships.galina.known||[...entered].some(x=>/^galina|galina/i.test(String(x))))s.relationships.galina.known=true;
-  if(entered.has('ch2_figure')||[...entered].some(x=>/^ch3_(intro|obey|turn|tell_off)/.test(String(x))))s.relationships.hood.known=true;
-  if(s.flags?.catMet||s.flags?.catFirstMeeting||[...entered].some(x=>String(x).startsWith('ch3_cat_')))s.relationships.cat.known=true;
-  if(entered.has('ch3_creature')||[...entered].some(x=>/^ch3_(vodka|garlic|run|ask_pigeon|pray)/.test(String(x))))s.relationships.creature.known=true;
-  if(entered.has('ch4_intro')||[...entered].some(x=>String(x).startsWith('ch4_')))s.relationships.semen.known=true;
 }
 function scaledStatusMods(state){
   const out=Object.fromEntries(STAT_KEYS.map(k=>[k,0]));
@@ -84,8 +53,8 @@ export function effectiveStat(state,key){return Math.max(0,core.permanentStat(st
 function recordVodka(before,s,action){
   const all=[...(action?.effects||[]),...(action?.hiddenEffects||[])];
   const drank=String(action?.id||'')==='use_vodka'||all.some(e=>e?.type==='statusAdd'&&e.id==='tipsy');
-  if(!drank)return false;
-  s.flags=s.flags||{};s.flags.vodkaDrinkSerial096=Number(before?.flags?.vodkaDrinkSerial096||0)+1;s.flags.lastVodkaDrinkDay096=dayOf(before?.clock?.totalMinutes);return true;
+  if(!drank)return;
+  s.flags=s.flags||{};s.flags.vodkaDrinkSerial096=Number(before?.flags?.vodkaDrinkSerial096||0)+1;s.flags.lastVodkaDrinkDay096=dayOf(before?.clock?.totalMinutes);
 }
 function maybeHangover(s,events){
   s.flags=s.flags||{};
@@ -100,9 +69,6 @@ function reconcileTired(s,beforeHad,events){
   if(energy<35)setActive(s,'tired',true,events);else if(energy>55)setActive(s,'tired',false,events);else setActive(s,'tired',Boolean(beforeHad),events);
   return events;
 }
-function ensureItem(s,id,qty){
-  if(!ITEM_DEFS[id])return;const cur=(s.inventory||[]).find(x=>x.id===id);if(cur)cur.qty=Math.max(Number(cur.qty||0),qty);else s.inventory.push({id,qty});
-}
 function applyTestSetup(s){
   if(!s.flags?.testMode)return;
   let cfg={};try{cfg=JSON.parse(localStorage.getItem('dnt-test-v096')||'{}')}catch{}
@@ -115,11 +81,6 @@ function applyTestSetup(s){
     if(id==='yebatorium')s.unlocks.yebatorium=true;
   }
   if(cfg.sunset){s.flags.evpapiySaloGivenCount=Math.max(2,Number(s.flags.evpapiySaloGivenCount||0));s.flags.evpapiyEnemyConflict096=true}
-  if(cfg.all097){
-    for(const id of ALLOWED_STATUSES)ensureDiscovered(s,id);
-    for(const [id,qty] of [['holy_water',3],['potion_unknown',1],['old_key',1],['water',3],['salo',3],['vodka',2],['garlic',3],['onion',2],['onion_angry',1],['onion_smelly',1],['medkit',2]])ensureItem(s,id,qty);
-    s.unlocks.yebatorium=true;s.unlocks.sunsetContempt=true;s.unlocks.prayer=true;s.flags.prayerUnlocked=true;
-  }
 }
 function syncItemKnowledge(s){
   const unknown=['garlic','onion','onion_angry','onion_smelly','potion_unknown'];
@@ -133,58 +94,57 @@ function syncItemKnowledge(s){
   };
   for(const [id,meta] of Object.entries(known))if(s.flags?.[`itemKnown095s_${id}`]&&ITEM_DEFS[id])Object.assign(ITEM_DEFS[id],meta);
 }
-function snapshotStepan(before,s,action){
-  const effects=[...(action?.effects||[]),...(action?.hiddenEffects||[])];
-  const missing=effects.some(e=>e?.type==='flag'&&e.key==='ch4StepanMissing'&&e.value===true);
-  if(!missing||s.flags?.stepanSnapshot097)return;
-  s.flags=s.flags||{};
-  s.flags.stepanSnapshot097=clone({
-    health:before.health,needs:before.needs,inventory:before.inventory,importantItems:before.importantItems,
-    quickSlots:before.quickSlots,ownedClothes:before.ownedClothes,equipment:before.equipment,stats:before.stats,
-    heroProgression:before.heroProgression,activeStatuses:before.activeStatuses,statusTimers:before.statusTimers,money:before.money
-  });
-}
 
 export function normalizeState(raw){
   const rawHadScared=Boolean(raw?.activeStatuses?.includes?.('scared'));
   const rawScaredMigration=Boolean(raw?.flags?.scaredMigration091);
-  let s=core.normalizeState(raw);forceChapter(s,raw);
+  let s=core.normalizeState(raw);
+  // Old migration used to inject fear merely because chapter 3 started. Do not reveal the consequence before its cause.
   const scene=String(s?.story?.sceneId||s?.scene||'');
   if(EARLY_CH3.has(scene)&&!rawHadScared&&!rawScaredMigration&&s.activeStatuses?.includes('scared')){
     s.activeStatuses=s.activeStatuses.filter(x=>x!=='scared');delete s.statusTimers?.scared;s.flags.scaredMigration091=true;
   }
-  s=cleanStatuses(s);s.flags=s.flags||{};
+  s=cleanStatuses(s);
+  s.flags=s.flags||{};
+
   if(s.activeStatuses.includes('suspicious')&&!Number.isFinite(Number(s.statusTimers?.suspicious)))s.statusTimers.suspicious=Number(s.clock?.totalMinutes||0)+30;
+
   const energy=Number(s.needs?.energy||0);
   if(energy<35){if(!s.activeStatuses.includes('tired'))s.activeStatuses.push('tired');ensureDiscovered(s,'tired')}
   else if(energy>55){s.activeStatuses=s.activeStatuses.filter(x=>x!=='tired');delete s.statusTimers.tired}
+
+  // v095v accidentally put NPCs in companions. Remove only those bad migrations; future real companions remain possible.
   for(const id of ['ryzheHamno','truposmerd','galina','hood','cat'])if(s.companions?.[id])delete s.companions[id];
+
   applyTestSetup(s);
-  const salo=Number(s.flags.evpapiySaloGivenCount||0);s.unlocks.sunsetContempt=Boolean(salo>=2&&s.flags.evpapiyEnemyConflict096);
-  syncItemKnowledge(s);syncKnownPeople(s);forceChapter(s,raw);
+
+  // ЗАКАТ ПРЄЗРЄНІЯ: two salo feedings + the explicit quarrel with the cat that tried to eat Євпапій.
+  const salo=Number(s.flags.evpapiySaloGivenCount||0);
+  s.unlocks.sunsetContempt=Boolean(salo>=2&&s.flags.evpapiyEnemyConflict096);
+
+  syncItemKnowledge(s);
   return cleanStatuses(s);
 }
 
 export function executeAction(state,action){
   const before=normalizeState(state),beforeActive=new Set(before.activeStatuses||[]),oldTimers={...(before.statusTimers||{})};
-  const r=core.executeAction(before,action);let s=cleanStatuses(forceChapter(r.state,before));let events=(r.events||[]).filter(e=>{
+  const r=core.executeAction(before,action);let s=cleanStatuses(r.state);let events=(r.events||[]).filter(e=>{
     if(e?.type!=='statusAdded'&&e?.type!=='statusRemoved')return true;return ALLOWED_STATUSES.has(e.id);
   });
+
+  const refreshed=new Set([...(action?.effects||[]),...(action?.hiddenEffects||[])].filter(e=>e?.type==='statusAdd').map(e=>e.id));
   for(const id of beforeActive){
+    if(refreshed.has(id))continue;
     if(!s.activeStatuses.includes(id)||!Number.isFinite(Number(oldTimers[id])))continue;
     if(Number(STATUS_DEFS[id]?.durationMinutes)>0)s.statusTimers[id]=Number(oldTimers[id]);
   }
+
+  // If a need reaches zero during this action, damage begins now, not one action later.
   let zeroHits=0;
   for(const k of ['water','satiety','energy'])if(Number(before.needs?.[k]||0)>0&&Number(s.needs?.[k]||0)<=0)zeroHits+=1;
-  if(zeroHits&&s.health>0){const b=s.health;s.health=Math.max(0,s.health-zeroHits);const actual=s.health-b;if(actual)events.push({type:'health',actual,visible:true,reason:'exhaustion'})}
-  const drank=recordVodka(before,s,action);
-  const all=[...(action?.effects||[]),...(action?.hiddenEffects||[])];
-  const added=id=>all.some(e=>e?.type==='statusAdd'&&e.id===id);
-  if(drank||added('tipsy')){if(!s.activeStatuses.includes('tipsy'))s.activeStatuses.push('tipsy');ensureDiscovered(s,'tipsy');s.statusTimers.tipsy=Number(s.clock?.totalMinutes||0)+90}
-  if(added('blessed')){if(!s.activeStatuses.includes('blessed'))s.activeStatuses.push('blessed');ensureDiscovered(s,'blessed');s.statusTimers.blessed=Number(s.clock?.totalMinutes||0)+60}
-  if(added('cowLicked')){if(!s.activeStatuses.includes('cowLicked'))s.activeStatuses.push('cowLicked');ensureDiscovered(s,'cowLicked');s.statusTimers.cowLicked=Number(s.clock?.totalMinutes||0)+60}
-  snapshotStepan(before,s,action);
-  events=reconcileTired(s,beforeActive.has('tired'),events);events=maybeHangover(s,events);syncItemKnowledge(s);syncKnownPeople(s);forceChapter(s,before);
+  if(zeroHits&&s.health>0){const b=s.health;s.health=Math.max(0,s.health-zeroHits);const actual=s.health-b;if(actual)events.push({type:'health',actual,visible:true,reason:'exhaustion'});}
+
+  recordVodka(before,s,action);events=reconcileTired(s,beforeActive.has('tired'),events);events=maybeHangover(s,events);syncItemKnowledge(s);
   return{state:cleanStatuses(s),events};
 }
 export function useItem(state,id){
@@ -195,12 +155,9 @@ export function useItem(state,id){
 const HIGH_STORY_DANGER=new Set([
   'ch2_bang','ch2_bang3','ch2_after_bang','ch2_side','ch2_garlic','ch2_salo','ch2_pigeon_scared','ch2_figure','ch2_end',
   'ch3_intro','ch3_obey','ch3_turn','ch3_call_pigeon','ch3_tell_off','ch3_creature','ch3_vodka','ch3_garlic','ch3_garlic_hit','ch3_ask_pigeon','ch3_run','ch3_pray',
-  'ch3_pray095_2','ch3_pray095_3','ch3_pray095_4','ch3_survival_bell095w',
-  'ch4_fog_watch','ch4_cat_moves','ch4_son_reveal','ch4_evp_block','ch4_voice','ch4_fog_deep','ch4_fall'
+  'ch3_pray095_2','ch3_pray095_3','ch3_pray095_4','ch3_survival_bell095w'
 ]);
 export function threatInfo(state){
   const scene=String(state?.story?.sceneId||state?.scene||''),base=core.threatInfo(state);
-  if(base.key==='critical')return base;
-  if(HIGH_STORY_DANGER.has(scene)||scene.startsWith('ch4_fog_'))return{key:'high',label:'ВИСОКА',reason:'поруч пряма небезпека'};
-  return base;
+  if(base.key==='critical')return base;if(HIGH_STORY_DANGER.has(scene))return{key:'high',label:'ВИСОКА',reason:'поруч пряма сюжетна небезпека'};return base;
 }
