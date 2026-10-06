@@ -1,10 +1,10 @@
 // v0.9.7 – Chapter 4 + final technical pass before story-only development.
-import {CHAPTER1_SCENES} from './chapter1.js?v=093';
-import {CHAPTER2_SCENES} from './chapter2.js?v=093';
-import {CHAPTER3_SCENES} from './chapter3.js?v=093';
-import {STATUS_DEFS,ITEM_DEFS} from './data.js?v=093';
-import {normalizeState,threatInfo,effectiveStat,createInitialState} from './engine.js?v=093';
-import {loadRun,saveRun,clearRun} from './storage.js?v=093';
+import {CHAPTER1_SCENES} from './chapter1.js?v=096b';
+import {CHAPTER2_SCENES} from './chapter2.js?v=096b';
+import {CHAPTER3_SCENES} from './chapter3.js?v=096b';
+import {STATUS_DEFS,ITEM_DEFS} from './data.js?v=096b';
+import {normalizeState,threatInfo,effectiveStat,createInitialState} from './engine.js?v=096b';
+import {loadRun,saveRun,clearRun} from './storage.js?v=096b';
 
 const PUBLIC_BUILD=false;
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
@@ -278,7 +278,7 @@ function installTest097(){
   if(auto==='1')setTimeout(()=>{document.querySelector('#testModeBtn')?.click();setTimeout(()=>document.querySelector('#continueTestBtn')?.click(),650)},450);
 }
 
-function stamp097(){document.querySelectorAll('.version,.howto-version,.game-name span').forEach(el=>el.textContent='v0.9.7 TEST')}
+function stamp097(){document.querySelectorAll('.version,.howto-version,.game-name span').forEach(el=>el.textContent='v0.9.7b TEST')}
 function warm097(){for(const src of [...Object.values(H),...Object.values(S),...Object.values(B),'./ch4_stepan_missing.png']){const im=new Image();im.src=src}}
 function apply097(){fixRepeatedReaction096a();restoreStatuses097();stripHeadInjury097();buildChapter4097();addCss097();installMenu097();installHeroWatcher097();installTest097();cleanPlayerCopy097();warm097();stamp097()}
 queueMicrotask(apply097);

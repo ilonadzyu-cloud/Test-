@@ -1,7 +1,7 @@
-// v0.9.7a TEST hotfix – Chapter 4 test launcher.
+// v0.9.7b TEST hotfix – Chapter 4 test launcher.
 // Starts chapter 4 directly from the test menu without the old reload race.
-import {createInitialState,normalizeState} from './engine.js?v=093';
-import {clearRun,saveRun,loadRun} from './storage.js?v=093';
+import {createInitialState,normalizeState} from './engine.js?v=096b';
+import {clearRun,saveRun,loadRun} from './storage.js?v=096b';
 
 const CH4_HISTORY=[
   'poop','galinaInside','galinaChanged','ch2_intro','ch2_figure',
@@ -125,7 +125,7 @@ function installChapter4Launcher097a(){
 }
 
 function stamp097a(){
-  document.querySelectorAll('.version,.howto-version,.game-name span').forEach(el=>el.textContent='v0.9.7a TEST');
+  document.querySelectorAll('.version,.howto-version,.game-name span').forEach(el=>el.textContent='v0.9.7b TEST');
 }
 
 queueMicrotask(()=>{installChapter4Launcher097a();stamp097a()});
