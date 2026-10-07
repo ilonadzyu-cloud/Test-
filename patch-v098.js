@@ -5,11 +5,11 @@ import {CHAPTER1_SCENES,resolveSceneValue} from './chapter1.js?v=096b';
 import {CHAPTER2_SCENES} from './chapter2.js?v=096b';
 import {CHAPTER3_SCENES} from './chapter3.js?v=096b';
 import {STATUS_DEFS,ITEM_DEFS} from './data.js?v=096b';
-import {normalizeState,executeAction,threatInfo,effectiveStat} from './engine.js?v=096b';
-import {loadRun,saveRun,listManual,listChapterCheckpoints,persistentWrite,saveKeys} from './storage.js?v=096b';
+import {normalizeState,executeAction,threatInfo,effectiveStat,createInitialState} from './engine.js?v=096b';
+import {loadRun,saveRun,listManual,listChapterCheckpoints,persistentWrite,saveKeys,clearRun} from './storage.js?v=096b';
 import {audioManager} from './audio.js?v=096b';
 
-const VERSION099='v0.9.9 TEST';
+const VERSION099='v0.9.9b TEST';
 const DEAD_STATUSES099=new Set(['headInjury','hungry','thirsty','wet','cold','overheated','bump']);
 const POST_TYPES099=new Set(['statusAdd','health','damage','need','heroXp','evpXp','itemAdd','itemRemove','clothesAdd','equip']);
 const BOOKS099=[CHAPTER1_SCENES,CHAPTER2_SCENES,CHAPTER3_SCENES];
@@ -107,7 +107,8 @@ function migrateState099(raw){
   if(!raw)return{state:raw,changed:false};
   const original=clone099(raw),hadPost=hasLegacyPost099(original),hadHead=hasDeadHead099(original);
   const entered=new Set(original.story?.entered||[]),sceneId=String(original.story?.sceneId||original.scene||'');
-  const oldCh4=entered.has('ch4_intro')||[...entered].some(x=>String(x).startsWith('ch4_'))||sceneId.startsWith('ch4_');
+  const freshTestCh4=Boolean(original.flags?.testFreshChapter4099b);
+  const oldCh4=!freshTestCh4&&(entered.has('ch4_intro')||[...entered].some(x=>String(x).startsWith('ch4_'))||sceneId.startsWith('ch4_'));
   const needsUrgent=Boolean(original.flags?.storyUrgent099||entered.has('ch4_son_question')||(oldCh4&&sceneById099(sceneId)?.storyPace==='urgent'));
   if(!hadPost&&!hadHead&&!oldCh4&&!needsUrgent)return{state:raw,changed:false};
 
@@ -172,11 +173,11 @@ const semen099=(src=S099.base)=>({role:'npc ch4-semen097',src,position:'npc'});
 const pigeon099=(src=P099.base)=>({role:'pigeon ch4-pigeon097',src,position:'pigeon'});
 const galina099=()=>({role:'npc ch4-galina097',src:'./galina_base.png',position:'npc'});
 const cat099=()=>({role:'npc ch4-cat097',src:'./cat_base_095m.png',position:'npc'});
-const yard099={background:'./ch4_night.jpg',atmosphere:'village',chapter:4,world:[{type:'world',key:'environment',value:'outdoors'},{type:'world',key:'location',value:'біля хати баби Галі'}]};
+const yard099={background:'./ch2_wake_yard.jpg',atmosphere:'village',chapter:4,world:[{type:'world',key:'environment',value:'outdoors'},{type:'world',key:'location',value:'біля хати баби Галі'}]};
 
 function memoryBranch099(s){
   if(s.flags?.creatureVodkaFriend)return'vodka';
-  if(s.flags?.creatureGarlicUsed||s.flags?.itemKnown095s_garlic)return'garlic';
+  if(s.flags?.creatureGarlicUsed)return'garlic';
   if(s.flags?.creaturePrayerReactionKnown095w||s.flags?.creaturePrayerStalled095w||s.flags?.creatureKilledByPrayer)return'prayer';
   if(s.flags?.shedBattleKnockout)return'fight';
   return'fight';
@@ -189,6 +190,7 @@ function memoryText099(s){
   return'Мужик дивиться на вас трохи довше.\n\n– Мир?';
 }
 function memoryActors099(s){return memoryBranch099(s)==='prayer'?[hero099(),semen099(S099.talk),pigeon099(P099.base)]:[hero099(),semen099(S099.talk)]}
+function itemQty099(s,id){return Number((s?.inventory||[]).find(x=>x?.id===id)?.qty||0)}
 function memoryChoices099(s){
   const branch=memoryBranch099(s);
   if(branch==='vodka')return[
@@ -197,7 +199,7 @@ function memoryChoices099(s){
     {id:'ch4_mem_vodka_never099',label:'Я тобі більше не наливаю.',next:'ch4_memory_reaction099',hiddenEffects:[{type:'flag',key:'ch4MemoryReply099',value:'vodka_never'}]}
   ];
   if(branch==='garlic')return[
-    {id:'ch4_mem_garlic_offer099',label:'Є. Хочеш?',next:'ch4_memory_reaction099',hiddenEffects:[{type:'flag',key:'ch4MemoryReply099',value:'garlic_offer'},{type:'relationship',person:'semen',key:'offense',value:1}]},
+    ...(itemQty099(s,'garlic')>0?[{id:'ch4_mem_garlic_offer099',label:'Є. Хочеш?',next:'ch4_memory_reaction099',hiddenEffects:[{type:'flag',key:'ch4MemoryReply099',value:'garlic_offer'},{type:'relationship',person:'semen',key:'offense',value:1}]}]:[]),
     {id:'ch4_mem_garlic_calm099',label:'Та не сци.',next:'ch4_memory_reaction099',hiddenEffects:[{type:'flag',key:'ch4MemoryReply099',value:'garlic_calm'}]},
     {id:'ch4_mem_garlic_remember099',label:'Ти його досі памʼятаєш?',next:'ch4_memory_reaction099',hiddenEffects:[{type:'flag',key:'ch4MemoryReply099',value:'garlic_remember'}]}
   ];
@@ -214,7 +216,7 @@ function memoryChoices099(s){
 }
 function memoryReactionText099(s){
   switch(s.flags?.ch4MemoryReply099){
-    case'vodka_hit':return'– Та не вбив же.\n\n– Дуже заспокоїв.\n\n– Ну от.';
+    case'vodka_hit':return'– Ти після неї чуть мене не вʼєбав.\n\nМужик хмуриться.\n\n– Та?\n\n– Да.\n\n– Хм. Хороша була.';
     case'vodka_paid':return'– Скільки?\n\n– Я пошуткував.\n\n– А.';
     case'vodka_never':return'– Та й добре.\n\n– Шо, образився?\n\n– Нє.';
     case'garlic_offer':return'Мужик робить пів кроку назад.\n\n– Нє.\n\n– А шо так?\n\n– Іди нахуй.';
@@ -235,9 +237,9 @@ function rebuildChapter4099(){
   const T=CHAPTER3_SCENES,oldSon=T.ch4_son_question,oldChoices=oldSon?.choices||[];
   if(!T.ch4_intro||T.ch4_intro.__v099final)return;
 
-  T.ch4_intro={...yard099,id:'ch4_intro',caption:'після сараю',storyPace:'calm',actors:[hero099(),pigeon099(P099.base),semen099(S099.base)],onEnter:[{type:'flag',key:'chapter4Started097',value:true},{type:'flag',key:'semenEncountered099',value:true},{type:'flag',key:'storyUrgent099',value:false}],text:`Ви стоїте у дворі біля хати баби Галі, коли на дорозі зʼявляється якийсь мужик з відром. Іде собі спокійно, ніби тут учора ніхто ні за ким не ганявся, нікого не били й узагалі нічого дивного не відбувалось.\n\nЄвпапій помічає його раніше за вас і раптом притихає. Мужик теж дивиться у ваш бік, трохи сповільнюється, а коли підходить ближче, киває вам так буденно, ніби ви сусіди, які кожного ранку зустрічаються біля криниці.\n\n– О, мужик. Живий.\n\n– А мав не бути?\n\n– Та всяке буває.`,choices:[{id:'ch4_intro_next099',label:'Далі',next:'ch4_recognize099'}],__v099final:true};
+  T.ch4_intro={...yard099,id:'ch4_intro',caption:'після сараю',storyPace:'calm',actors:[hero099(),pigeon099(P099.base),semen099(S099.base)],onEnter:[{type:'flag',key:'chapter4Started097',value:true},{type:'flag',key:'semenEncountered099',value:true},{type:'flag',key:'storyUrgent099',value:false}],text:`Ви стоїте у дворі біля хати баби Галі, коли на дорозі зʼявляється якийсь мужик з відром. Іде собі спокійно, ніби тут недавно ніхто ні за ким не ганявся, нікого не били й узагалі нічого дивного не відбувалось.\n\nЄвпапій помічає його раніше за вас і раптом притихає. Мужик теж дивиться у ваш бік, трохи сповільнюється, а коли підходить ближче, киває вам так буденно, ніби ви сусіди, які кожного ранку зустрічаються біля криниці.\n\n– О, мужик. Живий.\n\n– А мав не бути?\n\n– Та всяке буває.`,choices:[{id:'ch4_intro_next099',label:'Далі',next:'ch4_recognize099'}],__v099final:true};
 
-  T.ch4_recognize099={...yard099,id:'ch4_recognize099',caption:'десь я цю морду бачив',storyPace:'calm',actors:[hero099(),semen099(S099.base)],text:`Ви вже хочете щось відповісти, але зависаєте. Голос знайомий. Та й морда ця десь уже була, тільки вчора вона виглядала значно гірше.\n\nВи придивляєтесь до нього уважніше. До нормальної сорочки, чистого обличчя, відра в руці, а тоді в голові нарешті складається вчорашній сарай.\n\nТой самий голос. Та сама морда.\n\nТільки тепер перед вами стоїть цілком нормальний мужик, а не смердюче хуй знає шо, яке вилізло з темряви й чуть вас не вʼєбало.\n\n– ТРУПОСМЕРД?!\n\nМужик знизує плечима.\n\n– Ну, бувало.`,choices:s=>[
+  T.ch4_recognize099={...yard099,id:'ch4_recognize099',caption:'десь я цю морду бачив',storyPace:'calm',actors:[hero099(),semen099(S099.base)],text:`Ви вже хочете щось відповісти, але зависаєте. Голос знайомий. Та й морда ця десь уже була, тільки недавно вона виглядала значно гірше.\n\nВи придивляєтесь до нього уважніше. До нормальної сорочки, чистого обличчя, відра в руці, а тоді в голові нарешті складається те, що було біля сараю.\n\nТой самий голос. Та сама морда.\n\nТільки тепер перед вами стоїть цілком нормальний мужик, а не смердюче хуй знає шо, яке вилізло з темряви й чуть вас не вʼєбало.\n\n– ТРУПОСМЕРД?!\n\nМужик знизує плечима.\n\n– Ну, бувало.`,choices:s=>[
     {id:'ch4_reply_kill099',label:'Ти мене чуть не вбив.',next:'ch4_reply_kill099'},
     {id:'ch4_reply_often099',label:'І часто з тобою таке?',next:'ch4_reply_often099'},
     {id:'ch4_reply_broad099',label:'Виглядаєш, сука, підозріло бодро.',next:'ch4_reply_broad099'},
@@ -249,8 +251,8 @@ function rebuildChapter4099(){
   T.ch4_reply_broad099=introReplyScene099('ch4_reply_broad099','– А шо, мав дальше смердіти?\n\n– Було б логічніше.');
   T.ch4_reply_pofig099=introReplyScene099('ch4_reply_pofig099','Мужик дивиться на вас.\n\n– І всьо?\n\n– А шо я маю зробити? Назад тебе в сарай запхати?\n\n– Нє.\n\n– Ну то йдем далі.');
 
-  T.ch4_memory099={...yard099,id:'ch4_memory099',caption:'вчорашнє',storyPace:'calm',actors:memoryActors099,text:memoryText099,choices:memoryChoices099};
-  T.ch4_memory_reaction099={...yard099,id:'ch4_memory_reaction099',caption:'вчорашнє',storyPace:'calm',actors:memoryReactionActors099,text:memoryReactionText099,choices:[{id:'ch4_memory_done099',label:'Далі',next:'ch4_semen_name099'}]};
+  T.ch4_memory099={...yard099,id:'ch4_memory099',caption:'сарай',storyPace:'calm',actors:memoryActors099,text:memoryText099,choices:memoryChoices099};
+  T.ch4_memory_reaction099={...yard099,id:'ch4_memory_reaction099',caption:'сарай',storyPace:'calm',actors:memoryReactionActors099,text:memoryReactionText099,choices:[{id:'ch4_memory_done099',label:'Далі',next:'ch4_semen_name099'}]};
 
   T.ch4_semen_name099={...yard099,id:'ch4_semen_name099',caption:'знайомство',storyPace:'calm',actors:[hero099(),semen099(S099.talk)],onEnter:[{type:'relationshipKnown',person:'semen',value:true},{type:'flag',key:'semenIntroduced099',value:true}],text:`Мужик поправляє відро в руці.\n\n– Семен, до речі.\n\n– А тебе як? – питає Семен.`,choices:[
     {id:'ch4_name_stepan099',label:'Степан.',next:'ch4_name_stepan099'},
@@ -266,6 +268,78 @@ function rebuildChapter4099(){
   T.ch4_son_question={...yard099,id:'ch4_son_question',caption:'одне питання',storyPace:'urgent',actors:[hero099(H099.worry),semen099(S099.talk)],onEnter:[{type:'flag',key:'storyUrgent099',value:true}],text:`– В тебе син є?\n\nВи кілька секунд просто дивитесь на Семена.\n\n– Шо ти сказав?\n\n– Питаю, син у тебе є?\n\n– Звідки ти знаєш?\n\nСемен не відповідає одразу. Стоїть з відром у руці й дивиться на вас так спокійно, ніби спитав, котра година.\n\n– Та не заводься ти. Живий твій малий.\n\nВи різко робите крок до нього.\n\n– Ти його бачив?\n\n– Нє.\n\n– Тоді звідки ти знаєш, шо він живий?`,choices:[{id:'ch4_son_galina099',label:'Далі',next:'ch4_son_galina099'}]};
   T.ch4_son_galina099={...yard099,id:'ch4_son_galina099',caption:'баба галя',storyPace:'urgent',actors:[hero099(H099.angry),galina099(),semen099(S099.side)],text:`За вашою спиною скриплять двері. З хати виходить баба Галя, дивиться на вас, потім на Семена й одразу хмуриться.\n\n– До мене йди.\n\n– Баб Галь, він знає про мого сина.\n\n– Я чула. Іди сюди.\n\n– А я хочу знати, звідки він знає.\n\nСемен уже збирається щось відповісти, але баба Галя перебиває:\n\n– Семене. Не треба.\n\n– А шо я?\n\n– Ти поняв.\n\nВін дивиться на неї ще секунду й замовкає.\n\nВи переводите погляд на бабу Галю.\n\n– А ви тоже знаєте?\n\nВона не відповідає одразу.`,choices:[{id:'ch4_son_reaction099',label:'Далі',next:'ch4_son_reaction099'}]};
   T.ch4_son_reaction099={...yard099,id:'ch4_son_reaction099',caption:'всі шось знають',storyPace:'urgent',actors:[hero099(H099.worry),pigeon099(P099.serious),cat099()],text:`У дверях зʼявляється Риже гамно й сідає на порозі. Євпапій підлітає ближче, але цього разу не жартує.\n\n– Мужик, не лізь зараз.\n\nВи різко дивитесь на нього.\n\n– Ти тоже знаєш?\n\n– Нє.\n\n– Тоді не пизди.\n\nЄвпапій відкриває дзьоб, але передумує. Кіт дивиться в сторону дороги. Баба Галя й Семен лишились позаду, і чим довше всі мовчать, тим сильніше бісить відчуття, що єдиний, кому тут ніхуя не пояснили, – це ви.`,choices:oldChoices};
+}
+
+// ---- Reported story-flow fixes v0.9.9b -------------------------------------------
+function canFitItem099(s,id){return itemQty099(s,id)>0||(s?.inventory||[]).length<16}
+function fixReportedFlow099b(){
+  // Chapter 2: undo the old scene merge so taking Євпапій in hand is actually shown before the peck.
+  const C2=CHAPTER2_SCENES;
+  if(C2.ch2_real){
+    C2.ch2_real.onEnter=[{type:'stat',key:'ahui',value:1},{type:'memory',person:'evpapiy',key:'heroFinallyBelieved',value:true}];
+    C2.ch2_real.text=`Євпапій злітає з паркану й сідає вам на голову. Походу, вирішив, що тут тепер його гніздо.\n\nІ тут ви ловите себе на думці, що будуняк уже наче попускає. До цього ще можна було списати все на ту палену горілку: прокинулись хуй зна де, заговорив голуб – ну мало лі. Але зараз голова вже більш-менш ясна.\n\nВи знімаєте Євпапія з голови й берете в руки. Теплий. Жирний. Справжній.\n\n– Шо робиш, їбанько?\n\nВи ще секунду дивитесь на нього.\n\nРеально говорить.`;
+    C2.ch2_real.choices=[{id:'ch2_real_next',label:'Далі',next:'ch2_crowd'}];
+  }
+  if(C2.ch2_crowd){
+    C2.ch2_crowd.onEnter=[{type:'damage',amount:1,ignoreArmor:true},{type:'flag',key:'pigeonPeckedFinger',value:true}];
+    C2.ch2_crowd.text=`Євпапій клює вас у палець, виривається й відлітає трохи далі. Ви дивитесь йому вслід.\n\nПіздець.\n\nА ще ця жирна падла досі винна вам за куртку.\n\nЩе зранку село виглядало так, ніби всі разом вирішили повмирати по хатах, а тепер майже всі зібрались в одному дворі. Чоловіки тягають лавки, жінки носять миски й глечики, хтось накриває довгий стіл. Після дощу під ногами болото, від хати тягне димом, від столу – їжею.\n\nНароду у дворі дохуя, а тиша стояла така, поки десь за столом хтось не перднув. І навіть тоді ніхто не засміявся.`;
+    C2.ch2_crowd.choices=[{id:'ch2_crowd_next',label:'Далі',next:'ch2_legend'}];
+  }
+
+  const C3=CHAPTER3_SCENES;
+  // Calling Євпапій is one beat only. The next button goes straight to the creature reveal.
+  if(C3.ch3_call_pigeon){
+    C3.ch3_call_pigeon.text=`– Євпапій…\n\n– Шо?\n\n– Тихо, блядь.\n\nЄвпапій підлітає ближче й сідає вам на руку. Ви трохи піднімаєте її, щоб він бачив сарай.\n\nКілька секунд мовчить.\n\n– Не рухайся.\n\n– Та ви шо, сьогодні всі договорились?\n\nЄвпапій не відповідає.\n\nІ от це вже трохи напрягає.`;
+    C3.ch3_call_pigeon.choices=[{id:'ch3_call_next',label:'…',next:'ch3_creature'}];
+  }
+
+  // Garlic branch: one clean sequence, with the old imaginary conversation shown only if it really happened.
+  if(C3.ch3_garlic){
+    C3.ch3_garlic.onEnter=[{type:'itemRemove',id:'garlic',qty:1},{type:'flag',key:'creatureGarlicUsed',value:true}];
+    C3.ch3_garlic.text=s=>`– Ну давай, сука. Не підведи.\n\n– Ти шо робиш? – шипить постать.\n\n– Перевіряю народну медицину.\n\nВи кидаєте часник у створіння. Він влучає прямо в груди.\n\nСтворіння згинається й шипить, ніби його ошпарили. Від сорочки піднімається легкий дим.\n\n– О, – каже Євпапій.\n\n– Шо «о»?\n\n– Працює.\n\n${s.flags?.offeredGarlicAtShed?'– ТИ Ж КАЗАВ, ШО ЧАСНИК ХУЙНЯ.\n\n– Я сказав, шо мені його не давати.':'– Сам бачу, блядь.'}\n\nСтворіння повільно випрямляється і робить крок до вас.\n\nПостать тихо каже:\n\n– Тепер воно тебе запамʼятало.\n\n– Заєбісь.`;
+    C3.ch3_garlic.notice={title:'СТВОРІННЯ / ЗДОРОВʼЯ 80/100',body:''};
+    C3.ch3_garlic.choices=[{id:'ch3_garlic_hit',label:'…',next:'ch3_garlic_hit'}];
+  }
+  if(C3.ch3_garlic_hit){
+    const battleChoices=asArray099(resolve099(C3.ch3_garlic_hit.choices||[],{}));
+    C3.ch3_garlic_hit.onEnter=[{type:'damage',amount:10,ignoreArmor:true}];
+    C3.ch3_garlic_hit.text=`Створіння різко кидається вперед. Ви встигаєте відскочити, але воно чіпляє вас за плече й кидає на землю.\n\n– Нормально? – питає Євпапій.\n\n– Ага. Заєбісь. Відпочиваю.\n\nВи піднімаєтесь. Створіння вже знову йде до вас.`;
+    C3.ch3_garlic_hit.notice={title:'ЗДОРОВʼЯ -10',body:''};
+    if(battleChoices.length)C3.ch3_garlic_hit.choices=battleChoices;
+  }
+
+  // Knockout/escape aftermath: the key is visibly picked up before the inventory notice.
+  if(C3.ch3_wakeup){
+    C3.ch3_wakeup.onEnter=s=>{
+      const out=[{type:'flag',key:'shedKnifeDestroyed',value:true},{type:'flag',key:'shedBattleKnockout',value:true}];
+      if(itemQty099(s,'knife')>0)out.push({type:'itemRemove',id:'knife',qty:1});
+      if(itemQty099(s,'old_key')<=0&&canFitItem099(s,'old_key'))out.push({type:'itemAdd',id:'old_key',qty:1});
+      if(!s.flags?.shedHeadInjuryStory097)out.push({type:'damage',amount:10,ignoreArmor:true},{type:'flag',key:'shedHeadInjuryStory097',value:true});
+      return out;
+    };
+    C3.ch3_wakeup.text=`Ви приходите до тями від того, що вам тупо важко дихати.\n\nВідкриваєте очі – на грудях сидить Євпапій.\n\n– Злізь.\n\n– О, живий.\n\n– ЗЛІЗЬ, СУКА.\n\nЄвпапій нехотячи злітає. Ви повільно сідаєте під сараєм. Голова гуде, на потилиці щось мокре. Проводите рукою – кров.\n\nСарай перед вами закритий. Наче нічого не сталося.\n\nНожа нема. Постаті нема. Хуйні з сараю нема.\n\nПоруч у траві лежить старий ключ. Ви підбираєте його.`;
+    C3.ch3_wakeup.notice={title:'ОТРИМАНО: СТАРИЙ КЛЮЧ',body:'НІЖ ЗНИЩЕНО'};
+  }
+}
+
+function fixChapter4Continuity099b(){
+  const T=CHAPTER3_SCENES;
+  // All calm chapter-4 yard scenes happen the same morning. Fog scenes keep their own art.
+  for(const [id,sc] of Object.entries(T)){
+    if(id.startsWith('ch4_')&&sc?.background==='./ch4_night.jpg')sc.background='./ch2_wake_yard.jpg';
+  }
+  if(T.ch4_angry&&typeof T.ch4_angry.text==='string'){
+    T.ch4_angry.text=T.ch4_angry.text.replace(
+      'Ви ще секунду тримаєте Семена, а тоді помічаєте, що він уже майже не дивиться вам в очі. Його погляд знову йде кудись за ваше плече.',
+      'Ви ще секунду тримаєте Семена, потім розтискаєте пальці й відпускаєте його сорочку. І тільки тоді помічаєте, що він уже майже не дивиться вам в очі. Його погляд знову йде кудись за ваше плече.'
+    );
+  }
+  if(T.ch4_tired&&typeof T.ch4_tired.text==='string'){
+    T.ch4_tired.text=T.ch4_tired.text
+      .replace('Бо я вже третій день прокидаюсь хуй знає де, знайомлюсь із голубом, який говорить, бачу людей, які вчора були майже трупами, а тепер мені ще кажуть, шо мій син живий.', 'Бо я сьогодні прокинувся хуй знає де, познайомився з голубом, який говорить, а тепер мужик, який недавно був Трупосмердом, каже, шо мій син живий.')
+      .replace('Ти буквально пʼять хвилин тому не міг нормально пояснити, шо з тобою було в сараї.', 'Ти недавно не міг нормально пояснити, шо з тобою було в сараї.');
+    if(!T.ch4_tired.text.includes('Ви підводитесь із лавки.'))T.ch4_tired.text+='\n\nВи підводитесь із лавки.';
+  }
 }
 
 // ---- Menu knowledge ---------------------------------------------------------------
@@ -293,7 +367,7 @@ function knownCharacters099(s){
   const creatureSeen=entered.has('ch3_creature')||[...entered].some(x=>/^ch3_(vodka|garlic|run|ask_pigeon|pray)/.test(String(x)));
   if(creatureSeen)out.push({name:s.flags?.truposmerdNamed096?'ТРУПОСМЕРД':'???',portrait:'./creature_normal_095f.webp',facts:[s.flags?.truposmerdNamed096?'Виліз із сараю.':'???',s.flags?.creatureGarlicUsed?'Часник йому дуже не подобається.':'???',s.flags?.creatureVodkaFriend?'Горілку любить.':'???']});
   const semenSeen=Boolean(s.flags?.semenEncountered099||entered.has('ch4_intro')||[...entered].some(x=>String(x).startsWith('ch4_')));
-  if(semenSeen)out.push({name:s.flags?.semenIntroduced099?'Семен':'???',portrait:'./ch4_semen_base.png',facts:[s.flags?.semenIntroduced099?'Учора біля сараю виглядав зовсім інакше.':'Імʼя: ???',s.flags?.ch4StepanMissing?'Знає про сина Степана більше, ніж сказав.':'???']});
+  if(semenSeen)out.push({name:s.flags?.semenIntroduced099?'Семен':'???',portrait:'./ch4_semen_base.png',facts:[s.flags?.semenIntroduced099?'Біля сараю виглядав зовсім інакше.':'Імʼя: ???',s.flags?.ch4StepanMissing?'Знає про сина Степана більше, ніж сказав.':'???']});
   return out;
 }
 async function renderCharacters099(){
@@ -377,7 +451,61 @@ function ensureTestUI099(){
     if(opts.querySelector(`[data-test-status096="${id}"]`))continue;
     const def=STATUS_DEFS[id];if(!def)continue;const l=document.createElement('label');l.innerHTML=`<input type="checkbox" data-test-status096="${id}"> Дати ${esc099(def.name||id)}`;opts.appendChild(l);
   }
+  const oldCh4=panel.querySelector('[data-test-ch4-097]');
+  if(oldCh4){oldCh4.removeAttribute('data-test-ch4-097');oldCh4.setAttribute('data-test-ch4-099b','');oldCh4.onclick=null}
+  const ch4=panel.querySelector('[data-test-ch4-099b]');
+  if(ch4&&!ch4.dataset.bound099b){ch4.dataset.bound099b='1';ch4.addEventListener('click',launchChapter4Test099b)}
 }
+function saveTestConfig099b(){
+  let cfg={};try{cfg=JSON.parse(localStorage.getItem('dnt-test-v096')||'{}')}catch{}
+  cfg.statuses=[...document.querySelectorAll('[data-test-status096]:checked')].map(x=>x.dataset.testStatus096).filter(Boolean);
+  if(document.querySelector('#testScared')?.checked&&!cfg.statuses.includes('scared'))cfg.statuses.push('scared');
+  cfg.all097=Boolean(document.querySelector('#testAll097')?.checked);
+  cfg.sunset=Boolean(document.querySelector('#testSunset')?.checked);
+  try{localStorage.setItem('dnt-test-v096',JSON.stringify(cfg))}catch{}
+}
+function freshChapter4TestState099b(memory){
+  let s=createInitialState(99);
+  s=normalizeState(s);
+  s.runId=99;s.chapter=4;s.scene='ch4_intro';
+  s.story={...(s.story||{}),chapter:4,sceneId:'ch4_intro',entered:['poop','galinaInside','galinaChanged','ch2_intro','ch2_figure','ch3_creature','ch3_cat_intro095m','ch3_evp_returns'],finished:false};
+  s.flags={...(s.flags||{}),testMode:true,testFreshChapter4099b:true,initialStatusPopupShown:true,mapUnlocked:true,shopUnlocked:true,chapter1Complete:true,chapter2Started:true,chapter2Complete:true,chapter3Complete:true,localClothes:true,catMet:true,catFirstMeeting:'polite',truposmerdNamed096:true,metPigeon:true,knowsPigeonName:true,storyUrgent099:false};
+  s.companions=s.companions||{};s.companions.evpapiy={...(s.companions.evpapiy||{}),known:true,active:true,state:'З вами'};
+  s.relationships=s.relationships||{};s.relationships.evpapiy={...(s.relationships.evpapiy||{}),known:true};s.relationships.galina={...(s.relationships.galina||{}),known:true};
+  for(const k of ['creatureVodkaFriend','creatureGarlicUsed','creaturePrayerReactionKnown095w','creaturePrayerStalled095w','creatureKilledByPrayer','shedBattleKnockout','semenEncountered099','semenIntroduced099'])delete s.flags[k];
+  if(memory==='vodka')s.flags.creatureVodkaFriend=true;
+  else if(memory==='garlic')s.flags.creatureGarlicUsed=true;
+  else if(memory==='prayer')s.flags.creaturePrayerReactionKnown095w=true;
+  else s.flags.shedBattleKnockout=true;
+  s=normalizeState(s);
+  // Some older engine layers clamp the chapter number. Force the fresh test start after normalization.
+  s.runId=99;s.chapter=4;s.scene='ch4_intro';s.story={...(s.story||{}),chapter:4,sceneId:'ch4_intro',entered:['poop','galinaInside','galinaChanged','ch2_intro','ch2_figure','ch3_creature','ch3_cat_intro095m','ch3_evp_returns'],finished:false};s.flags={...(s.flags||{}),testMode:true,testFreshChapter4099b:true,initialStatusPopupShown:true,storyUrgent099:false};
+  return s;
+}
+async function launchChapter4Test099b(e){
+  e?.preventDefault?.();e?.stopPropagation?.();
+  saveTestConfig099b();
+  const memory=document.querySelector('#testCh4Memory097')?.value||'vodka';
+  try{
+    await clearRun(99);
+  }catch{}
+  const state=freshChapter4TestState099b(memory);
+  await saveRun(state);
+  try{localStorage.setItem('dnt-autostart-test099b','1')}catch{}
+  location.reload();
+}
+async function autoStartFreshTest099b(){
+  let go='';try{go=localStorage.getItem('dnt-autostart-test099b')||'';if(go)localStorage.removeItem('dnt-autostart-test099b')}catch{}
+  if(go!=='1')return;
+  try{await window.__dntMigration099}catch{}
+  document.querySelector('#testModeBtn')?.click();
+  for(let i=0;i<50;i++){
+    const btn=document.querySelector('#continueTestBtn');
+    if(btn){btn.click();return}
+    await new Promise(r=>setTimeout(r,60));
+  }
+}
+
 function installTest099(){
   const btn=document.querySelector('#testModeBtn');if(btn){btn.textContent='Тестовий режим';btn.addEventListener('click',()=>{for(const ms of [0,80,220,500])setTimeout(ensureTestUI099,ms)},true)}
 }
@@ -432,14 +560,14 @@ function warmAllScenes099(){
     if(Array.isArray(scene.actors))for(const a of scene.actors)if(typeof a?.src==='string')staticAssets.push(a.src);
   }
   for(const src of [...new Set(staticAssets)])preloadImage099(src);
-  const critical=['./ch4_night.jpg','./ch4_fog_light.jpg','./ch4_fog_dark.jpg','./ch4_semen_base.png','./ch4_semen_talk.png','./ch4_semen_sideeye.png','./ch4_stepan_son.png','./ch4_stepan_missing.png','./pigeon_base_095b.webp','./pigeon_suspicious.png','./cat_base_095m.png','./galina_base.png','./hero_shrug_096.png','./hero_angry_096.png','./hero_worry_096.png','./hero_injured_096.png'];
+  const critical=['./ch2_wake_yard.jpg','./ch4_night.jpg','./ch4_fog_light.jpg','./ch4_fog_dark.jpg','./ch4_semen_base.png','./ch4_semen_talk.png','./ch4_semen_sideeye.png','./ch4_stepan_son.png','./ch4_stepan_missing.png','./pigeon_base_095b.webp','./pigeon_suspicious.png','./cat_base_095m.png','./galina_base.png','./hero_shrug_096.png','./hero_angry_096.png','./hero_worry_096.png','./hero_injured_096.png'];
   Promise.allSettled(critical.map(src=>decodeImage099(src)));
 }
 let activeRun099=0;
 function rememberRun099(target){
   const card=target?.closest?.('.run-card');if(card){const n=Number((card.textContent||'').match(/Проходження\s+(\d+)/)?.[1]||0);if(n)activeRun099=n}
   const manual=target?.closest?.('[data-start-manual]');if(manual){const n=Number(String(manual.dataset.startManual||'').split(':')[0]||0);if(n)activeRun099=n}
-  if(target?.closest?.('#continueTestBtn,[data-test-chapter],[data-test-ch4-097]'))activeRun099=99;
+  if(target?.closest?.('#continueTestBtn,[data-test-chapter],[data-test-ch4-097],[data-test-ch4-099b]'))activeRun099=99;
 }
 function predictChoiceState099(state,choice){
   try{
@@ -494,15 +622,18 @@ function addCss099(){
   `;document.head.appendChild(st);
 }
 
-export const __v099Test={shopSafe:shopSafe099,sceneUrgent:sceneUrgent099,mapState:mapState099,knownCharacters:knownCharacters099,migrateState:migrateState099,decodeScene:decodeScene099,memoryBranch:memoryBranch099};
+export const __v099Test={shopSafe:shopSafe099,sceneUrgent:sceneUrgent099,mapState:mapState099,knownCharacters:knownCharacters099,migrateState:migrateState099,decodeScene:decodeScene099,memoryBranch:memoryBranch099,fixReportedFlow:fixReportedFlow099b,fixChapter4Continuity:fixChapter4Continuity099b,freshChapter4TestState:freshChapter4TestState099b};
 
 function apply099(){
   stamp099();disableSound099();
   restoreImmediateConsequences099();
   cleanHeadInjuryRuntime099();
+  fixReportedFlow099b();
   rebuildChapter4099();
+  fixChapter4Continuity099b();
   addCss099();installMenu099();installTest099();fixUiCopy099();installPreloadHooks099();
   window.__dntMigration099=runMigrationGate099();
-  for(const ms of [0,250,900])setTimeout(()=>{stamp099();disableSound099();fixUiCopy099()},ms);
+  autoStartFreshTest099b();
+  for(const ms of [0,250,900])setTimeout(()=>{stamp099();disableSound099();fixUiCopy099();ensureTestUI099()},ms);
 }
 queueMicrotask(apply099);
