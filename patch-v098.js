@@ -9,7 +9,7 @@ import {normalizeState,executeAction,threatInfo,effectiveStat,createInitialState
 import {loadRun,saveRun,listManual,listChapterCheckpoints,persistentWrite,saveKeys,clearRun} from './storage.js?v=096b';
 import {audioManager} from './audio.js?v=096b';
 
-const VERSION099='v0.9.9c TEST';
+const VERSION099='v0.9.9d TEST';
 const DEAD_STATUSES099=new Set(['headInjury','hungry','thirsty','wet','cold','overheated','bump']);
 const POST_TYPES099=new Set(['statusAdd','health','damage','need','heroXp','evpXp','itemAdd','itemRemove','clothesAdd','equip']);
 const BOOKS099=[CHAPTER1_SCENES,CHAPTER2_SCENES,CHAPTER3_SCENES];
@@ -109,10 +109,16 @@ function migrateState099(raw){
   const entered=new Set(original.story?.entered||[]),sceneId=String(original.story?.sceneId||original.scene||'');
   const freshTestCh4=Boolean(original.flags?.testFreshChapter4099b);
   const oldCh4=!freshTestCh4&&(entered.has('ch4_intro')||[...entered].some(x=>String(x).startsWith('ch4_'))||sceneId.startsWith('ch4_'));
+  const oldCh5EvpEnding099d=new Set(['ch5_evp_crash099c','ch5_evp_search099c']);
+  const needsCh6Migration099d=oldCh5EvpEnding099d.has(sceneId)||Boolean(original.flags?.chapter5Complete099c&&original.flags?.ch5StepanMissing099c&&Number(original.chapter||0)===5);
   const needsUrgent=Boolean(original.flags?.storyUrgent099||entered.has('ch4_son_question')||(oldCh4&&sceneById099(sceneId)?.storyPace==='urgent'));
-  if(!hadPost&&!hadHead&&!oldCh4&&!needsUrgent)return{state:raw,changed:false};
+  if(!hadPost&&!hadHead&&!oldCh4&&!needsUrgent&&!needsCh6Migration099d)return{state:raw,changed:false};
 
   let s=normalizeState(clone099(raw));s.flags=s.flags||{};
+  if(needsCh6Migration099d){
+    s.chapter=6;s.scene='ch6_intro099d';s.story={...(s.story||{}),chapter:6,sceneId:'ch6_intro099d',finished:false};
+    s.flags.ch4StepanMissing=true;s.flags.ch5StepanMissing099c=true;s.flags.activeHero097='evpapiy';s.flags.chapter5Complete099c=true;s.flags.storyUrgent099=true;s.flags.migratedOldCh5EndingToCh6099d=true;
+  }
   const oldFogEnding099c=new Set(['ch4_watch','ch4_cat_moves','ch4_evp_block','ch4_voice','ch4_fog_deep','ch4_fall','ch4_evp_after']);
   if(oldFogEnding099c.has(sceneId)){
     s.chapter=5;s.scene='ch5_intro';s.story={...(s.story||{}),chapter:5,sceneId:'ch5_intro',finished:false};
@@ -130,7 +136,10 @@ function migrateState099(raw){
   if(oldCh4){s.flags.semenEncountered099=true;s.flags.semenIntroduced099=true}
   if(needsUrgent)s.flags.storyUrgent099=true;
   s.flags.immediateMigration099=true;
-  return{state:normalizeState(s),changed:true};
+  let migrated099=normalizeState(s);
+  if(needsCh6Migration099d){migrated099.chapter=6;migrated099.scene='ch6_intro099d';migrated099.story={...(migrated099.story||{}),chapter:6,sceneId:'ch6_intro099d',finished:false};migrated099.flags={...(migrated099.flags||{}),ch4StepanMissing:true,ch5StepanMissing099c:true,activeHero097:'evpapiy',chapter5Complete099c:true,storyUrgent099:true,migratedOldCh5EndingToCh6099d:true}}
+  else if(oldFogEnding099c.has(sceneId)){migrated099.chapter=5;migrated099.scene='ch5_intro';migrated099.story={...(migrated099.story||{}),chapter:5,sceneId:'ch5_intro',finished:false}}
+  return{state:migrated099,changed:true};
 }
 async function migrateAllSaves099(){
   for(const run of [1,2,3,99]){
@@ -402,9 +411,56 @@ function rebuildChapter5099c(){
   T.ch5_no_road099c={...fog5099,id:'ch5_no_road099c',caption:'дороги нема',actors:[hero5099(H5099.worry),pigeon5099(P5099.serious)],text:`Ви обертаєтесь.\n\nДороги назад нема. Ні хати баби Галі. Ні паркану. Ні Семена. Тільки білий туман.\n\n– Блядь, – тихо каже Євпапій.\n\n– Де дорога?\n\n– Я єбу?\n\nІ цього разу навіть він звучить налякано.`,choices:[{id:'ch5_no_road_next099c',label:'Далі',next:'ch5_figure099c'}]};
   T.ch5_figure099c={...fog5099,id:'ch5_figure099c',caption:'постать',actors:[hero5099(H5099.son)],text:`– Тату…\n\nВи повертаєтесь на голос. Попереду в тумані стоїть темна постать. Ні лиця, ні одягу не розгледіти.\n\n– Синку?\n\nПостать ніби відходить далі.\n\n– Тату, сюди.\n\nВи робите крок.`,choices:[{id:'ch5_figure_next099c',label:'Далі',next:'ch5_evp_grabs099c'}]};
   T.ch5_evp_grabs099c={...fog5099,id:'ch5_evp_grabs099c',caption:'не йди',actors:[hero5099(H5099.son),pigeon5099(P5099.fly)],text:`Євпапій хапає вас кігтями за плече.\n\n– Не йди.\n\n– Відпусти.\n\n– Нє.\n\n– Там мій син.\n\n– ТИ НЕ ЗНАЄШ, ШО ТАМ.\n\nВи смикаєтесь. Євпапій злітає з плеча.\n\nІ ви робите ще один крок.`,choices:[{id:'ch5_evp_grabs_next099c',label:'Далі',next:'ch5_fall099c'}]};
-  T.ch5_fall099c={...fog5099,id:'ch5_fall099c',caption:'темно',actors:[hero5099(H5099.son)],text:`Під ногою немає землі.\n\nВи навіть не встигаєте нормально зрозуміти, що сталося. Світ різко провалюється вниз.\n\nОстаннє, що ви чуєте:\n\n– СТЕПАНЕ!\n\nТемно.`,choices:[{id:'ch5_fall_next099c',label:'Далі',next:'ch5_evp_crash099c'}]};
+  T.ch5_fall099c={...fog5099,id:'ch5_fall099c',caption:'темно',actors:[hero5099(H5099.son)],onEnter:[{type:'flag',key:'chapter5Complete099c',value:true}],text:`Під ногою немає землі.\n\nВи навіть не встигаєте нормально зрозуміти, що сталося. Світ різко провалюється вниз.\n\nОстаннє, що ви чуєте:\n\n– СТЕПАНЕ!\n\nТемно.`,choices:[{id:'ch6_start099d',label:'Далі',next:'ch6_intro099d'}]};
   T.ch5_evp_crash099c={...road5099,id:'ch5_evp_crash099c',caption:'де степан',storyPace:'urgent',actors:[pigeon5099(P5099.base),cat5099()],text:`Євпапій з розгону вилітає з туману й їбеться мордою в мокру землю. Піднімає голову.\n\nДорога знову на місці. Степана нема.\n\nЧерез кілька секунд підбігає Риже гамно й зупиняється поруч.\n\n– Мужик?\n\nТиша.\n\nЄвпапій підлітає вище.\n\n– СТЕПАНЕ!\n\nНіхуя.`,choices:[{id:'ch5_evp_crash_next099c',label:'Далі',next:'ch5_evp_search099c'}]};
   T.ch5_evp_search099c={...road5099,id:'ch5_evp_search099c',caption:'степан зник',storyPace:'calm',actors:[pigeon5099(P5099.base),cat5099()],onEnter:[{type:'flag',key:'ch4StepanMissing',value:true},{type:'flag',key:'ch5StepanMissing099c',value:true},{type:'flag',key:'activeHero097',value:'evpapiy'},{type:'flag',key:'chapter5Complete099c',value:true},{type:'flag',key:'storyUrgent099',value:false}],text:`Євпапій сідає просто в багнюку.\n\n– Блядь.\n\nКіт дивиться на нього.\n\n– Тільки не кажи, шо ти тоже ніхуя не поняв.\n\nРиже гамно повертає голову до туману. Євпапій теж дивиться туди.\n\n– Заєбісь.\n\nВін піднімається.\n\n– Пішли.\n\nКіт не рухається.\n\n– Треба зрозуміти, куди цей довбойоб дівся.\n\nРиже гамно ще секунду дивиться на порожню дорогу, потім іде в сторону села. Євпапій летить за ним.`,notice:{title:'СТЕПАН ЗНИК',body:'КЕРУВАННЯ ПЕРЕХОДИТЬ ДО ЄВПАПІЯ'},end:true,choices:[]};
+}
+
+
+// ---- Chapter 6: ЄВПАПІЙ ----------------------------------------------------------
+const road6099={background:'./ch4_fog_light.jpg',atmosphere:'silent',chapter:6,storyPace:'urgent',shopAccess:false,world:[{type:'world',key:'environment',value:'outdoors'},{type:'world',key:'location',value:'стара дорога за селом'}]};
+const yard6099={background:'./ch4_night.jpg',atmosphere:'village',chapter:6,storyPace:'urgent',shopAccess:false,world:[{type:'world',key:'environment',value:'outdoors'},{type:'world',key:'location',value:'біля хати баби Галі'}]};
+function rebuildChapter6099d(){
+  const T=CHAPTER3_SCENES;
+  // Chapter 5 now ends on Степан's fall. The crash/search beat belongs to chapter 6.
+  if(T.ch5_fall099c)T.ch5_fall099c.choices=[{id:'ch6_start099d',label:'Далі',next:'ch6_intro099d'}];
+
+  T.ch6_intro099d={...road6099,id:'ch6_intro099d',caption:'де мужик',actors:[pigeon5099(P5099.base),cat5099()],onEnter:[
+    {type:'flag',key:'chapter6Started099d',value:true},
+    {type:'flag',key:'chapter5Complete099c',value:true},
+    {type:'flag',key:'ch4StepanMissing',value:true},
+    {type:'flag',key:'ch5StepanMissing099c',value:true},
+    {type:'flag',key:'activeHero097',value:'evpapiy'},
+    {type:'flag',key:'storyUrgent099',value:true}
+  ],text:`Євпапій вилітає з туману й зі всього розгону їбеться об дорогу. Кілька секунд лежить, розпластавши крила, потім піднімає голову. Туману майже нема. Степана теж.\n\n– Блядь. Мужик? Мужик, хорош прикалуватись.\n\nТиша. Євпапій підлітає вище, оглядає дорогу, але ні слідів, ні Степана. З узбіччя чути шурхіт, і з темряви виходить Риже гамно. Кіт дивиться туди, де щойно був туман.\n\n– Тільки не кажи, шо ти тоже ніхуя не поняв.`,notice:{title:'СТЕПАН ЗНИК',body:'КЕРУВАННЯ ПЕРЕХОДИТЬ ДО ЄВПАПІЯ'},choices:[{id:'ch6_intro_next099d',label:'Далі',next:'ch6_name099d'}]};
+
+  T.ch6_name099d={...road6099,id:'ch6_name099d',caption:'степане',actors:[pigeon5099(P5099.serious),cat5099()],text:`Кіт мовчки розвертається й іде в бік села. Євпапій ще раз дивиться на порожню дорогу.\n\n– СТЕПАНЕ!\n\nНіхуя.\n\nВін сам на секунду завмирає від того, що вперше нормально назвав його по імені, тоді летить за котом.`,choices:[{id:'ch6_name_next099d',label:'Далі',next:'ch6_yard099d'}]};
+
+  T.ch6_yard099d={...yard6099,id:'ch6_yard099d',caption:'де мужик',actors:[pigeon5099(P5099.serious),semen5099(S099.side),galina5099()],text:`Біля хати баби Галі стоїть Семен. Баба на ґанку. Побачивши Євпапія, обоє замовкають. Голуб сідає просто перед Семеном.\n\n– Де мужик?\n\n– Який?\n\n– Ти зараз серйозно?\n\n– Я його не тягнув.\n\n– А я не питав, чи ти його тягнув. Я спитав, де він.\n\n– Значить, перейшов.\n\n– Куди?\n\n– Євпапію, – втручається баба Галя.\n\n– Не начинай. Він пішов у ту хуйню, дорога пропала, я вилетів назад, а його нема.`,choices:[{id:'ch6_yard_next099d',label:'Далі',next:'ch6_accuse099d'}]};
+
+  T.ch6_accuse099d={...yard6099,id:'ch6_accuse099d',caption:'ти знав?',actors:[pigeon5099(P5099.serious),semen5099(S099.side)],text:`Семен відводить очі. Євпапій уже дивиться тільки на нього.\n\n– Він пішов туди, бо ти сказав про малого. Ти сказав, шо він його кликав. А потім показав, куди йти. Ти знав, шо буде?\n\n– Нє.\n\n– Пиздиш.\n\n– Не пизджу.\n\n– В тебе рожа така.\n\n– Яка?\n\n– Пиздюча.\n\nСемен уже не усміхається.\n\n– Я його пальцем не тронув.\n\n– Ага. І це чогось звучить ще гірше.`,choices:[{id:'ch6_accuse_next099d',label:'Далі',next:'ch6_salo099d'}]};
+
+  T.ch6_salo099d={...yard6099,id:'ch6_salo099d',caption:'недоказано',actors:[pigeon5099(P5099.base),cat5099(),galina5099()],text:`У двір заходить Риже гамно й одразу помічає миску із салом біля ґанку. Євпапій теж коситься туди.\n\n– Навіть не думай, – каже баба Галя.\n\n– Та мені нахуй не треба ваше сало.\n\nКіт повільно переводить погляд на голуба.\n\n– Чого ти на мене так дивишся?\n\n– Бо минулого разу тоже «не треба» було.\n\n– Недоказано.`,choices:[{id:'ch6_salo_next099d',label:'Далі',next:'ch6_darina099d'}]};
+
+  T.ch6_darina099d={...yard6099,id:'ch6_darina099d',caption:'дарина',actors:[pigeon5099(P5099.base),semen5099(S099.side),galina5099()],onEnter:[{type:'flag',key:'darinaAppeared099d',value:true}],text:`І тут із-за хвіртки чути жіночий голос:\n\n– А шо тут опять сталося?\n\nЗаходить Дарина.`,end:true,choices:[]};
+}
+
+function freshChapter6TestState099d(){
+  let s=freshChapter5TestState099c();
+  s.chapter=6;s.scene='ch6_intro099d';
+  s.story={...(s.story||{}),chapter:6,sceneId:'ch6_intro099d',entered:[...new Set([...(s.story?.entered||[]),'ch5_intro','ch5_evening_cat099c','ch5_into_fog099c','ch5_fall099c'])],finished:false};
+  s.flags={...(s.flags||{}),testFreshChapter6099d:true,chapter5Complete099c:true,ch4StepanMissing:true,ch5StepanMissing099c:true,activeHero097:'evpapiy',storyUrgent099:true};
+  s.clock={...(s.clock||{}),totalMinutes:1440+18*60};
+  s.needs={...(s.needs||{}),satiety:Math.max(72,Number(s.needs?.satiety||0)),water:Math.max(72,Number(s.needs?.water||0)),energy:Math.max(78,Number(s.needs?.energy||0))};
+  s=normalizeState(s);s.chapter=6;s.scene='ch6_intro099d';s.story={...(s.story||{}),chapter:6,sceneId:'ch6_intro099d',finished:false};s.flags={...(s.flags||{}),testMode:true,testFreshChapter6099d:true,chapter5Complete099c:true,ch4StepanMissing:true,ch5StepanMissing099c:true,activeHero097:'evpapiy',storyUrgent099:true};
+  return s;
+}
+async function launchChapter6Test099d(e){
+  e?.preventDefault?.();e?.stopPropagation?.();saveTestConfig099b();
+  try{await clearRun(99)}catch{}
+  await saveRun(freshChapter6TestState099d());
+  try{localStorage.setItem('dnt-autostart-test099b','1')}catch{}
+  location.reload();
 }
 
 function freshChapter5TestState099c(){
@@ -542,7 +598,7 @@ function mapState099(s){
   const home=unlocked;
   const wake=Boolean(s?.flags?.chapter2Started||[...entered].some(x=>String(x).startsWith('ch2_')));
   const shed=Boolean(s?.flags?.heardShedConversation||s?.flags?.heardShedBang||s?.flags?.pigeonSawInsideShed||s?.flags?.ignoredShed||[...entered].some(x=>/^ch[23]_/.test(String(x))&&/shed|bang|creature|garlic|vodka|pray|wakeup/.test(String(x))));
-  const fogScenes=new Set(['ch4_watch','ch4_cat_moves','ch4_evp_block','ch4_voice','ch4_fog_deep','ch4_fall','ch4_evp_after','ch5_evening_cat099c','ch5_evp_fog099c','ch5_first_voice099c','ch5_semen_hears099c','ch5_galina_stops099c','ch5_voice_again099c','ch5_evp_blocks099c','ch5_pass_semen099c','ch5_into_fog099c','ch5_voice_deeper099c','ch5_name_shout099c','ch5_no_road099c','ch5_figure099c','ch5_evp_grabs099c','ch5_fall099c','ch5_evp_crash099c','ch5_evp_search099c']);
+  const fogScenes=new Set(['ch4_watch','ch4_cat_moves','ch4_evp_block','ch4_voice','ch4_fog_deep','ch4_fall','ch4_evp_after','ch5_evening_cat099c','ch5_evp_fog099c','ch5_first_voice099c','ch5_semen_hears099c','ch5_galina_stops099c','ch5_voice_again099c','ch5_evp_blocks099c','ch5_pass_semen099c','ch5_into_fog099c','ch5_voice_deeper099c','ch5_name_shout099c','ch5_no_road099c','ch5_figure099c','ch5_evp_grabs099c','ch5_fall099c','ch5_evp_crash099c','ch5_evp_search099c','ch6_intro099d','ch6_name099d']);
   const fog=Boolean(/туман/i.test(loc)||[...entered].some(x=>fogScenes.has(String(x))));
   const currentFog=/туман/i.test(loc),currentShed=/сарай/i.test(loc),currentWake=/помин|стол|двір/i.test(loc)&&!currentShed&&!currentFog,currentHome=!currentWake&&!currentShed&&!currentFog&&/хат|криниц/i.test(loc);
   return{unlocked,home,wake,shed,fog,currentFog,currentShed,currentWake,currentHome};
@@ -612,6 +668,8 @@ function ensureTestUI099(){
   if(ch4&&!ch4.dataset.bound099b){ch4.dataset.bound099b='1';ch4.addEventListener('click',launchChapter4Test099b)}
   const chapters=panel.querySelector('.test-chapters');if(chapters&&!chapters.querySelector('[data-test-ch5-099c]')){const b=document.createElement('button');b.type='button';b.setAttribute('data-test-ch5-099c','');b.textContent='Глава 5';chapters.appendChild(b)}
   const ch5=panel.querySelector('[data-test-ch5-099c]');if(ch5&&!ch5.dataset.bound099c){ch5.dataset.bound099c='1';ch5.addEventListener('click',launchChapter5Test099c)}
+  if(chapters&&!chapters.querySelector('[data-test-ch6-099d]')){const b=document.createElement('button');b.type='button';b.setAttribute('data-test-ch6-099d','');b.textContent='Глава 6';chapters.appendChild(b)}
+  const ch6=panel.querySelector('[data-test-ch6-099d]');if(ch6&&!ch6.dataset.bound099d){ch6.dataset.bound099d='1';ch6.addEventListener('click',launchChapter6Test099d)}
 }
 function saveTestConfig099b(){
   let cfg={};try{cfg=JSON.parse(localStorage.getItem('dnt-test-v096')||'{}')}catch{}
@@ -724,7 +782,7 @@ let activeRun099=0;
 function rememberRun099(target){
   const card=target?.closest?.('.run-card');if(card){const n=Number((card.textContent||'').match(/Проходження\s+(\d+)/)?.[1]||0);if(n)activeRun099=n}
   const manual=target?.closest?.('[data-start-manual]');if(manual){const n=Number(String(manual.dataset.startManual||'').split(':')[0]||0);if(n)activeRun099=n}
-  if(target?.closest?.('#continueTestBtn,[data-test-chapter],[data-test-ch4-097],[data-test-ch4-099b]'))activeRun099=99;
+  if(target?.closest?.('#continueTestBtn,[data-test-chapter],[data-test-ch4-097],[data-test-ch4-099b],[data-test-ch5-099c],[data-test-ch6-099d]'))activeRun099=99;
 }
 function predictChoiceState099(state,choice){
   try{
@@ -779,7 +837,7 @@ function addCss099(){
   `;document.head.appendChild(st);
 }
 
-export const __v099Test={shopSafe:shopSafe099,sceneUrgent:sceneUrgent099,mapState:mapState099,knownCharacters:knownCharacters099,migrateState:migrateState099,decodeScene:decodeScene099,memoryBranch:memoryBranch099,fixReportedFlow:fixReportedFlow099b,fixChapter4Continuity:fixChapter4Continuity099b,freshChapter4TestState:freshChapter4TestState099b,freshChapter5TestState:freshChapter5TestState099c};
+export const __v099Test={shopSafe:shopSafe099,sceneUrgent:sceneUrgent099,mapState:mapState099,knownCharacters:knownCharacters099,migrateState:migrateState099,decodeScene:decodeScene099,memoryBranch:memoryBranch099,fixReportedFlow:fixReportedFlow099b,fixChapter4Continuity:fixChapter4Continuity099b,freshChapter4TestState:freshChapter4TestState099b,freshChapter5TestState:freshChapter5TestState099c,freshChapter6TestState:freshChapter6TestState099d};
 
 function apply099(){
   stamp099();disableSound099();
@@ -788,6 +846,7 @@ function apply099(){
   fixReportedFlow099b();
   rebuildChapter4099();
   rebuildChapter5099c();
+  rebuildChapter6099d();
   fixChapter4Continuity099b();
   addCss099();installMenu099();installTest099();fixUiCopy099();installPreloadHooks099();
   window.__dntMigration099=runMigrationGate099();
