@@ -9,7 +9,7 @@ import {normalizeState,executeAction,threatInfo,effectiveStat,createInitialState
 import {loadRun,saveRun,listManual,listChapterCheckpoints,persistentWrite,saveKeys,clearRun} from './storage.js?v=096b';
 import {audioManager} from './audio.js?v=096b';
 
-const VERSION099='v0.9.9d TEST';
+const VERSION099='v0.9.9e TEST';
 const DEAD_STATUSES099=new Set(['headInjury','hungry','thirsty','wet','cold','overheated','bump']);
 const POST_TYPES099=new Set(['statusAdd','health','damage','need','heroXp','evpXp','itemAdd','itemRemove','clothesAdd','equip']);
 const BOOKS099=[CHAPTER1_SCENES,CHAPTER2_SCENES,CHAPTER3_SCENES];
@@ -322,12 +322,14 @@ function ch5SemenReplyText099(s){
   }
 }
 function ch5GalinaReplyText099(s){
+  let text='';
   switch(s.flags?.ch5GalinaReply099c){
-    case'ok':return'– Ви ж казали, шо з ним усе добре.\n\n– І зараз кажу.\n\nБаба Галя стискає вашу руку.\n\n– Саме тому не йди.';
-    case'who':return'– Тоді хто це?\n\n– Не знаю.\n\n– Ви брешете.\n\n– Може. Але зараз послухай мене.';
-    case'know':return'– Звідки ви знаєте, шо то не він?\n\n– Бо знаю, як воно працює.\n\n– Як шо працює?\n\n– Не зараз.';
-    default:return'– Відпустіть мене.\n\n– Нє.\n\n– Баб Галь.\n\n– Хоч обматюкай мене. Тільки не йди.';
+    case'ok':text='– Ви ж казали, шо з ним усе добре.\n\n– І зараз кажу.\n\nБаба Галя стискає вашу руку.\n\n– Саме тому не йди.';break;
+    case'who':text='– Тоді хто це?\n\n– Не знаю.\n\n– Ви брешете.\n\n– Може. Але зараз послухай мене.';break;
+    case'know':text='– Звідки ви знаєте, шо то не він?\n\n– Бо знаю, як воно працює.\n\n– Як шо працює?\n\n– Не зараз.';break;
+    default:text='– Відпустіть мене.\n\n– Нє.\n\n– Баб Галь.\n\n– Хоч обматюкай мене. Тільки не йди.';break;
   }
+  return `${text}\n\nВи смикаєте руку на себе. Цього разу баба Галя не тримає.`;
 }
 function ch5VoiceAgainText099(s){
   let memory='';
@@ -346,7 +348,7 @@ function rebuildChapter5099c(){
   T.ch4_son_reaction099={...yard099,id:'ch4_son_reaction099',caption:'не зараз',storyPace:'urgent',shopAccess:false,actors:[hero099(H099.worry),galina099(),semen099(S099.side)],text:`– Баб Галь, ви знаєте, де він?\n\nВона дивиться на вас довше, ніж хотілося б.\n\n– Нє.\n\n– Тоді звідки ви знаєте, шо з ним усе добре?\n\n– Бо знаю. І з ним усе добре.\n\nСемен відкриває рот, але баба Галя навіть не повертається до нього.\n\n– Семене. Досить.\n\nВін знизує плечима й мовчить.\n\n– А мені шо робити? – питаєте ви.\n\n– Сьогодні – нічого. Іди в хату. Завтра поговоримо.\n\nВід цього легше не стає ні на грам.`,choices:[{id:'ch4_finish099c',label:'Далі',next:'ch4_end099c'}]};
   T.ch4_end099c={...yard099,id:'ch4_end099c',caption:'кінець глави',storyPace:'calm',shopAccess:false,actors:[hero099(),pigeon099(P099.base)],onEnter:[{type:'flag',key:'chapter4Complete099c',value:true},{type:'flag',key:'storyUrgent099',value:false}],text:`Семен піднімає відро й іде дорогою, ніби нічого особливого не сказав. Баба Галя повертається до хати.\n\nВи ще трохи стоїте у дворі й дивитесь їм услід. Євпапій мовчить поруч, що саме по собі вже трохи напрягає.\n\nНа сьогодні відповідей більше не буде.`,choices:[{id:'ch5_start099c',label:'Наступний день',next:'ch5_intro'}]};
 
-  T.ch5_intro={...yard5099,id:'ch5_intro',caption:'ДОРОГА',storyPace:'calm',actors:[hero5099(),pigeon5099(P5099.base)],onEnter:chapter5Arrival099,text:`Наступного дня під вечір ви сидите біля хати. Євпапій крутиться поруч.\n\n– Ну шо, Степан.\n\nВи дивитесь на нього.\n\n– Шо?\n\n– Нічо. Проверяв.\n\n– Шо проверяв?\n\n– Чи відкликаєшся.\n\n– І?\n\n– Відкликаєшся, мужик.\n\n– На хуя ти тоді імʼя питав?\n\n– Для інформації.`,choices:[{id:'ch5_intro_next099c',label:'Далі',next:'ch5_evp_son099c'}]};
+  T.ch5_intro={...yard5099,id:'ch5_intro',caption:'ДОРОГА',storyPace:'calm',actors:[hero5099(),pigeon5099(P5099.base)],onEnter:chapter5Arrival099,text:`Наступного дня під вечір ви сидите біля хати. Євпапій крутиться поруч.\n\n– Ну шо, мужик.\n\nВи дивитесь на нього.\n\n– Шо?\n\n– Нічо. Проверяв.\n\n– Шо проверяв?\n\n– Чи відкликаєшся.\n\n– І?\n\n– Відкликаєшся.\n\n– А чого ти мене весь час мужиком називаєш?\n\n– Привик.`,choices:[{id:'ch5_intro_next099c',label:'Далі',next:'ch5_evp_son099c'}]};
 
   T.ch5_evp_son099c={...yard5099,id:'ch5_evp_son099c',caption:'малий',storyPace:'calm',actors:[hero5099(),pigeon5099(P5099.base)],text:`Євпапій якийсь час мовчить, потім коситься на вас.\n\n– Ти про малого думаєш?\n\n– А ти як думаєш?\n\n– Думаю, шо баба сказала – все добре.\n\n– А я думаю, шо від цього ні хуя не легше.`,choices:[
     ch5ChoiceFlag099('ch5_evp_trust099c','Я їй вірю. Просто хочу знати більше.','ch5_evp_reply099c','ch5EvpReply099c','trust'),
@@ -377,7 +379,7 @@ function rebuildChapter5099c(){
   ]};
 
   T.ch5_galina_warning099c={...yard5099,id:'ch5_galina_warning099c',caption:'не ходи',storyPace:'calm',shopAccess:false,actors:[hero5099(),galina5099()],text:`– Баб Галь.\n\nВона тільки дивиться на ваше лице.\n\n– Семен приходив.\n\n– Я вже поняла.\n\n– Каже, чув дитину біля старої дороги.\n\nБаба Галя завмирає.\n\n– Туди не ходи.\n\n– Чого?\n\n– Бо я сказала.\n\n– Дуже переконливо.\n\nВона підходить ближче.\n\n– І ще одне. Якщо звідти когось почуєш – не відповідай.\n\n– Кого?\n\n– Нікого.`,choices:[{id:'ch5_galina_warning_next099c',label:'Далі',next:'ch5_evening_cat099c'}]};
-  T.ch5_check_road099c={...road5099,id:'ch5_check_road099c',caption:'стара дорога',storyPace:'calm',shopAccess:false,actors:[hero5099(),pigeon5099(P5099.base)],text:`Ви доходите тільки до краю села. Далі звичайна мокра дорога. Поле. Кущі. Ніяких дітей.\n\nЄвпапій сідає на паркан.\n\n– Ну?\n\n– Нічого.\n\n– Поздравляю. Семен показав тобі дорогу.\n\n– Хочеш медаль?\n\n– Хочу сало.\n\n– В тебе одна думка в голові?\n\n– Нє. Ще бабине підвіконня.`,choices:[{id:'ch5_check_road_next099c',label:'Далі',next:'ch5_evening_cat099c'}]};
+  T.ch5_check_road099c={...road5099,id:'ch5_check_road099c',caption:'стара дорога',storyPace:'calm',shopAccess:false,actors:[hero5099(),pigeon5099(P5099.base)],text:`Ви доходите тільки до краю села. Далі звичайна мокра дорога. Поле. Кущі. Ніяких дітей.\n\nЄвпапій сідає на паркан.\n\n– Ну?\n\n– Нічого.\n\n– Поздравляю. Семен показав тобі дорогу.\n\n– Хочеш медаль?\n\n– Хочу сало.\n\n– В тебе одна думка в голові?\n\n– Нє. Ще бабине підвіконня.\n\nПісля цього ви розвертаєтесь і йдете назад до хати.`,choices:[{id:'ch5_check_road_next099c',label:'Далі',next:'ch5_evening_cat099c'}]};
   T.ch5_ignore099c={...yard5099,id:'ch5_ignore099c',caption:'та ну його',storyPace:'calm',shopAccess:false,actors:[hero5099(),pigeon5099(P5099.base)],text:`– Та ну його нахуй.\n\n– Розумне рішення.\n\nВи дивитесь на Євпапія.\n\n– Аж підозріло, шо ти погодився.\n\n– Я тоже іноді в ахуї від себе.\n\nВи йдете назад до хати.`,choices:[{id:'ch5_ignore_next099c',label:'Далі',next:'ch5_evening_cat099c'}]};
 
   T.ch5_evening_cat099c={...road5099,id:'ch5_evening_cat099c',caption:'туман',storyPace:'urgent',actors:[hero5099(),cat5099()],onEnter:[{type:'flag',key:'storyUrgent099',value:true}],text:`До вечора стає прохолодніше. Риже гамно раптом виходить із двору й зупиняється посеред дороги.\n\nВи проходите повз, але кіт не рухається.\n\n– Ти там шо побачив?\n\nКіт дивиться вперед. Хвіст повільно опускається.\n\nВи теж дивитесь.\n\nМіж хатами стелиться туман.`,choices:[{id:'ch5_cat_next099c',label:'Далі',next:'ch5_evp_fog099c'}]};
@@ -434,13 +436,13 @@ function rebuildChapter6099d(){
     {type:'flag',key:'storyUrgent099',value:true}
   ],text:`Євпапій вилітає з туману й зі всього розгону їбеться об дорогу. Кілька секунд лежить, розпластавши крила, потім піднімає голову. Туману майже нема. Степана теж.\n\n– Блядь. Мужик? Мужик, хорош прикалуватись.\n\nТиша. Євпапій підлітає вище, оглядає дорогу, але ні слідів, ні Степана. З узбіччя чути шурхіт, і з темряви виходить Риже гамно. Кіт дивиться туди, де щойно був туман.\n\n– Тільки не кажи, шо ти тоже ніхуя не поняв.`,notice:{title:'СТЕПАН ЗНИК',body:'КЕРУВАННЯ ПЕРЕХОДИТЬ ДО ЄВПАПІЯ'},choices:[{id:'ch6_intro_next099d',label:'Далі',next:'ch6_name099d'}]};
 
-  T.ch6_name099d={...road6099,id:'ch6_name099d',caption:'степане',actors:[pigeon5099(P5099.serious),cat5099()],text:`Кіт мовчки розвертається й іде в бік села. Євпапій ще раз дивиться на порожню дорогу.\n\n– СТЕПАНЕ!\n\nНіхуя.\n\nВін сам на секунду завмирає від того, що вперше нормально назвав його по імені, тоді летить за котом.`,choices:[{id:'ch6_name_next099d',label:'Далі',next:'ch6_yard099d'}]};
+  T.ch6_name099d={...road6099,id:'ch6_name099d',caption:'степане',actors:[pigeon5099(P5099.serious),cat5099()],text:`Кіт мовчки розвертається й іде в бік села. Євпапій ще раз дивиться на порожню дорогу.\n\n– СТЕПАНЕ!\n\nНіхуя.\n\nІмʼя цього разу звучить уже не як підйоб. Євпапій ще секунду дивиться на порожню дорогу, тоді летить за котом.`,choices:[{id:'ch6_name_next099d',label:'Далі',next:'ch6_yard099d'}]};
 
   T.ch6_yard099d={...yard6099,id:'ch6_yard099d',caption:'де мужик',actors:[pigeon5099(P5099.serious),semen5099(S099.side),galina5099()],text:`Біля хати баби Галі стоїть Семен. Баба на ґанку. Побачивши Євпапія, обоє замовкають. Голуб сідає просто перед Семеном.\n\n– Де мужик?\n\n– Який?\n\n– Ти зараз серйозно?\n\n– Я його не тягнув.\n\n– А я не питав, чи ти його тягнув. Я спитав, де він.\n\n– Значить, перейшов.\n\n– Куди?\n\n– Євпапію, – втручається баба Галя.\n\n– Не начинай. Він пішов у ту хуйню, дорога пропала, я вилетів назад, а його нема.`,choices:[{id:'ch6_yard_next099d',label:'Далі',next:'ch6_accuse099d'}]};
 
   T.ch6_accuse099d={...yard6099,id:'ch6_accuse099d',caption:'ти знав?',actors:[pigeon5099(P5099.serious),semen5099(S099.side)],text:`Семен відводить очі. Євпапій уже дивиться тільки на нього.\n\n– Він пішов туди, бо ти сказав про малого. Ти сказав, шо він його кликав. А потім показав, куди йти. Ти знав, шо буде?\n\n– Нє.\n\n– Пиздиш.\n\n– Не пизджу.\n\n– В тебе рожа така.\n\n– Яка?\n\n– Пиздюча.\n\nСемен уже не усміхається.\n\n– Я його пальцем не тронув.\n\n– Ага. І це чогось звучить ще гірше.`,choices:[{id:'ch6_accuse_next099d',label:'Далі',next:'ch6_salo099d'}]};
 
-  T.ch6_salo099d={...yard6099,id:'ch6_salo099d',caption:'недоказано',actors:[pigeon5099(P5099.base),cat5099(),galina5099()],text:`У двір заходить Риже гамно й одразу помічає миску із салом біля ґанку. Євпапій теж коситься туди.\n\n– Навіть не думай, – каже баба Галя.\n\n– Та мені нахуй не треба ваше сало.\n\nКіт повільно переводить погляд на голуба.\n\n– Чого ти на мене так дивишся?\n\n– Бо минулого разу тоже «не треба» було.\n\n– Недоказано.`,choices:[{id:'ch6_salo_next099d',label:'Далі',next:'ch6_darina099d'}]};
+  T.ch6_salo099d={...yard6099,id:'ch6_salo099d',caption:'недоказано',actors:[pigeon5099(P5099.base),cat5099(),galina5099()],text:`У двір заходить Риже гамно й одразу помічає миску із салом біля ґанку. Євпапій теж коситься туди.\n\n– Навіть не думай, – каже баба Галя.\n\n– Та мені нахуй не треба ваше сало.\n\nКіт повільно переводить погляд на голуба.\n\n– Чого ти на мене так дивишся?\n\n– Бо минулого разу тоже «не треба» було, – каже баба Галя.\n\n– Недоказано.`,choices:[{id:'ch6_salo_next099d',label:'Далі',next:'ch6_darina099d'}]};
 
   T.ch6_darina099d={...yard6099,id:'ch6_darina099d',caption:'дарина',actors:[pigeon5099(P5099.base),semen5099(S099.side),galina5099()],onEnter:[{type:'flag',key:'darinaAppeared099d',value:true}],text:`І тут із-за хвіртки чути жіночий голос:\n\n– А шо тут опять сталося?\n\nЗаходить Дарина.`,end:true,choices:[]};
 }
@@ -507,7 +509,7 @@ function fixReportedFlow099b(){
   // Garlic branch: one clean sequence, with the old imaginary conversation shown only if it really happened.
   if(C3.ch3_garlic){
     C3.ch3_garlic.onEnter=[{type:'itemRemove',id:'garlic',qty:1},{type:'flag',key:'creatureGarlicUsed',value:true}];
-    C3.ch3_garlic.text=s=>`– Ну давай, сука. Не підведи.\n\n– Ти шо робиш? – шипить постать.\n\n– Перевіряю народну медицину.\n\nВи кидаєте часник у створіння. Він влучає прямо в груди.\n\nСтворіння згинається й шипить, ніби його ошпарили. Від сорочки піднімається легкий дим.\n\n– О, – каже Євпапій.\n\n– Шо «о»?\n\n– Працює.\n\n${s.flags?.offeredGarlicAtShed?'– ТИ Ж КАЗАВ, ШО ЧАСНИК ХУЙНЯ.\n\n– Я сказав, шо мені його не давати.':'– Сам бачу, блядь.'}\n\nСтворіння повільно випрямляється і робить крок до вас.\n\nПостать тихо каже:\n\n– Тепер воно тебе запамʼятало.\n\n– Заєбісь.`;
+    C3.ch3_garlic.text=s=>`– Ну давай, сука. Не підведи.\n\n– Ти шо робиш? – шипить постать.\n\n– Перевіряю народну медицину.\n\nВи кидаєте часник у створіння. Він влучає прямо в груди.\n\nСтворіння згинається й шипить, ніби його ошпарили. Від сорочки піднімається легкий дим.\n\n– О, – каже Євпапій.\n\n– Шо «о»?\n\n– Працює.\n\n${(s.memories?.evpapiy?.offeredGarlicAtShed||s.flags?.offeredGarlicAtShed)?'– ТИ Ж КАЗАВ, ШО ЧАСНИК ХУЙНЯ.\n\n– Я сказав, шо мені його не давати.':'– Сам бачу, блядь.'}\n\nСтворіння повільно випрямляється і робить крок до вас.\n\nПостать тихо каже:\n\n– Тепер воно тебе запамʼятало.\n\n– Заєбісь.`;
     C3.ch3_garlic.notice={title:'СТВОРІННЯ / ЗДОРОВʼЯ 80/100',body:''};
     C3.ch3_garlic.choices=[{id:'ch3_garlic_hit',label:'…',next:'ch3_garlic_hit'}];
   }
@@ -563,7 +565,7 @@ function replaceTab099(tab,handler){
   neu.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();handler(neu)},true);
   return neu;
 }
-function characterHtml099(c){return `<details class="character-card096"><summary><img src="${esc099(c.portrait)}" alt=""><b>${esc099(c.name)}</b></summary><div>${(c.facts?.length?c.facts:['???']).map(f=>`<p>${esc099(f)}</p>`).join('')}</div></details>`}
+function characterHtml099(c){const art=c.portrait?`<img src="${esc099(c.portrait)}" alt="">`:'<span class="character-placeholder099" aria-hidden="true">?</span>';return `<details class="character-card096"><summary>${art}<b>${esc099(c.name)}</b></summary><div>${(c.facts?.length?c.facts:['???']).map(f=>`<p>${esc099(f)}</p>`).join('')}</div></details>`}
 function knownCharacters099(s){
   const entered=new Set(s.story?.entered||[]),out=[];
   if(s.flags?.ch4StepanMissing)out.push({name:'Степан',portrait:'./ch4_stepan_missing.png',facts:['Місцезнаходження: ???','Стан: ???']});
@@ -579,6 +581,8 @@ function knownCharacters099(s){
   if(creatureSeen)out.push({name:s.flags?.truposmerdNamed096?'ТРУПОСМЕРД':'???',portrait:'./creature_normal_095f.webp',facts:[s.flags?.truposmerdNamed096?'Виліз із сараю.':'???',s.flags?.creatureGarlicUsed?'Часник йому дуже не подобається.':'???',s.flags?.creatureVodkaFriend?'Горілку любить.':'???']});
   const semenSeen=Boolean(s.flags?.semenEncountered099||entered.has('ch4_intro')||[...entered].some(x=>String(x).startsWith('ch4_')));
   if(semenSeen)out.push({name:s.flags?.semenIntroduced099?'Семен':'???',portrait:'./ch4_semen_base.png',facts:[s.flags?.semenIntroduced099?'Біля сараю виглядав зовсім інакше.':'Імʼя: ???',s.flags?.ch4StepanMissing?'Знає про сина Степана більше, ніж сказав.':'???']});
+  const darinaSeen=Boolean(s.flags?.darinaAppeared099d||entered.has('ch6_darina099d'));
+  if(darinaSeen)out.push({name:'Дарина',portrait:null,facts:['Щойно прийшла до хати баби Галі.','Хто вона: ???']});
   return out;
 }
 async function renderCharacters099(){
@@ -725,6 +729,29 @@ function installTest099(){
   const btn=document.querySelector('#testModeBtn');if(btn){btn.textContent='Тестовий режим';btn.addEventListener('click',()=>{for(const ms of [0,80,220,500])setTimeout(ensureTestUI099,ms)},true)}
 }
 
+// ---- Immediate active-hero UI sync -------------------------------------------------
+function applyActiveHeroUi099e(isEvp){
+  document.body.classList.toggle('evp-mode097',Boolean(isEvp));
+  let badge=document.querySelector('#activeHeroBadge097');
+  if(!badge){badge=document.createElement('span');badge.id='activeHeroBadge097';badge.className='active-hero-badge097 hidden';document.querySelector('.world-line')?.appendChild(badge)}
+  if(badge){badge.textContent=isEvp?'🕊️ ЄВПАПІЙ':'';badge.classList.toggle('hidden',!isEvp)}
+  if(isEvp){
+    const needs=document.querySelector('#miniNeeds');if(needs)needs.innerHTML='<span>🕊️ Керуєте Євпапієм</span>';
+  }
+}
+async function syncActiveHeroUi099e(){
+  const kicker=String(document.querySelector('#storyKicker')?.textContent||'');
+  if(/ГЛАВА\s*6/i.test(kicker)){applyActiveHeroUi099e(true);return}
+  try{const s=await currentState099();applyActiveHeroUi099e(Boolean(s?.flags?.activeHero097==='evpapiy'&&s?.flags?.ch4StepanMissing))}catch{}
+}
+function installActiveHeroUiFix099e(){
+  const target=document.querySelector('#storyKicker');if(!target||target.dataset.heroFix099e)return;target.dataset.heroFix099e='1';
+  const run=()=>{syncActiveHeroUi099e();setTimeout(syncActiveHeroUi099e,0);setTimeout(syncActiveHeroUi099e,80)};
+  new MutationObserver(run).observe(target,{childList:true,subtree:true,characterData:true});
+  document.querySelector('#gameScreen')&&new MutationObserver(run).observe(document.querySelector('#gameScreen'),{attributes:true,attributeFilter:['class']});
+  run();
+}
+
 // ---- Image preloading --------------------------------------------------------------
 const imageCache099=new Map();
 function imageRecord099(src){
@@ -830,6 +857,8 @@ function addCss099(){
     .stage-image:has(>.actor.actor-1):not(:has(>.actor.actor-2))>.actor.actor-0:not(.pigeon):not(.ch4-pigeon097):not(.ch4-cat097),.stage-image:has(>.actor.actor-1):not(:has(>.actor.actor-2))>.actor.actor-1:not(.pigeon):not(.ch4-pigeon097):not(.ch4-cat097){max-width:40%!important;max-height:92%!important}
     .stage-image:has(>.actor.actor-2)>.actor.actor-0:not(.pigeon):not(.ch4-pigeon097):not(.ch4-cat097),.stage-image:has(>.actor.actor-2)>.actor.actor-1:not(.pigeon):not(.ch4-pigeon097):not(.ch4-cat097),.stage-image:has(>.actor.actor-2)>.actor.actor-2:not(.pigeon):not(.ch4-pigeon097):not(.ch4-cat097){max-width:31%!important;max-height:92%!important}
     .relation-card small{display:block;margin-top:7px;opacity:.7}
+    .character-placeholder099{display:inline-grid;place-items:center;width:52px;height:52px;border-radius:50%;border:1px solid #47554d;font-weight:900;font-size:1.4rem;opacity:.8}
+    .evp-mode097 .quick-row,.evp-mode097 .active-states{display:none!important}
     @media(max-width:620px){
       .stage-image:has(>.actor.actor-1):not(:has(>.actor.actor-2))>.actor.actor-0:not(.pigeon):not(.ch4-pigeon097):not(.ch4-cat097),.stage-image:has(>.actor.actor-1):not(:has(>.actor.actor-2))>.actor.actor-1:not(.pigeon):not(.ch4-pigeon097):not(.ch4-cat097){max-width:43%!important}
       .stage-image:has(>.actor.actor-2)>.actor.actor-0:not(.pigeon):not(.ch4-pigeon097):not(.ch4-cat097),.stage-image:has(>.actor.actor-2)>.actor.actor-1:not(.pigeon):not(.ch4-pigeon097):not(.ch4-cat097),.stage-image:has(>.actor.actor-2)>.actor.actor-2:not(.pigeon):not(.ch4-pigeon097):not(.ch4-cat097){max-width:33%!important}
@@ -848,7 +877,7 @@ function apply099(){
   rebuildChapter5099c();
   rebuildChapter6099d();
   fixChapter4Continuity099b();
-  addCss099();installMenu099();installTest099();fixUiCopy099();installPreloadHooks099();
+  addCss099();installMenu099();installTest099();fixUiCopy099();installActiveHeroUiFix099e();installPreloadHooks099();
   window.__dntMigration099=runMigrationGate099();
   autoStartFreshTest099b();
   for(const ms of [0,250,900])setTimeout(()=>{stamp099();disableSound099();fixUiCopy099();ensureTestUI099()},ms);
