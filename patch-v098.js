@@ -5,7 +5,7 @@ import {CHAPTER1_SCENES,resolveSceneValue} from './chapter1.js?v=096b';
 import {CHAPTER2_SCENES} from './chapter2.js?v=096b';
 import {CHAPTER3_SCENES} from './chapter3.js?v=096b';
 import {STATUS_DEFS,ITEM_DEFS} from './data.js?v=096b';
-import {normalizeState,executeAction,threatInfo} from './engine.js?v=096b';
+import {normalizeState,executeAction,threatInfo,effectiveStat} from './engine.js?v=096b';
 import {loadRun,saveRun,listManual,listChapterCheckpoints,persistentWrite,saveKeys} from './storage.js?v=096b';
 import {audioManager} from './audio.js?v=096b';
 
@@ -108,7 +108,8 @@ function migrateState099(raw){
   const original=clone099(raw),hadPost=hasLegacyPost099(original),hadHead=hasDeadHead099(original);
   const entered=new Set(original.story?.entered||[]),sceneId=String(original.story?.sceneId||original.scene||'');
   const oldCh4=entered.has('ch4_intro')||[...entered].some(x=>String(x).startsWith('ch4_'))||sceneId.startsWith('ch4_');
-  if(!hadPost&&!hadHead&&!oldCh4)return{state:raw,changed:false};
+  const needsUrgent=Boolean(original.flags?.storyUrgent099||entered.has('ch4_son_question')||(oldCh4&&sceneById099(sceneId)?.storyPace==='urgent'));
+  if(!hadPost&&!hadHead&&!oldCh4&&!needsUrgent)return{state:raw,changed:false};
 
   let s=normalizeState(clone099(raw));s.flags=s.flags||{};
   if(hadPost&&sceneId&&entered.has(sceneId)){
@@ -120,6 +121,7 @@ function migrateState099(raw){
   }
   cleanPostFlags099(s);removeHeadFromState099(s);
   if(oldCh4){s.flags.semenEncountered099=true;s.flags.semenIntroduced099=true}
+  if(needsUrgent)s.flags.storyUrgent099=true;
   s.flags.immediateMigration099=true;
   return{state:normalizeState(s),changed:true};
 }
@@ -140,8 +142,28 @@ async function migrateAllSaves099(){
     }catch(e){console.warn('v099 migration skipped',run,e)}
   }
 }
+let migrationReady099=false;
+function setMigrationGate099(waiting){
+  const ids=['newGameBtn','continueBtn','chaptersBtn','savesBtn','testModeBtn'];
+  for(const id of ids){const b=document.getElementById(id);if(b)b.disabled=Boolean(waiting)}
+  const c=document.getElementById('continueBtn');
+  if(c){if(waiting){if(!c.dataset.label099)c.dataset.label099=c.textContent;c.textContent='Перевіряю сейви…'}else if(c.dataset.label099){c.textContent=c.dataset.label099}}
+}
+function installMigrationGate099(){
+  setMigrationGate099(true);
+  document.addEventListener('click',e=>{
+    if(migrationReady099)return;
+    if(e.target?.closest?.('#newGameBtn,#continueBtn,#chaptersBtn,#savesBtn,#testModeBtn,.run-card,[data-start-manual],[data-chapter-new],[data-chapter-continue],#continueTestBtn')){
+      e.preventDefault();e.stopImmediatePropagation();
+    }
+  },true);
+}
+async function runMigrationGate099(){
+  installMigrationGate099();
+  try{await migrateAllSaves099()}finally{migrationReady099=true;setMigrationGate099(false)}
+}
 
-// ---- Chapter 4: real introduction + smaller scene beats ---------------------------
+// ---- Chapter 4: final opening structure --------------------------------------------
 const H099={base:'./hero_shrug_096.png',angry:'./hero_angry_096.png',worry:'./hero_worry_096.png'};
 const S099={base:'./ch4_semen_base.png',talk:'./ch4_semen_talk.png',side:'./ch4_semen_sideeye.png'};
 const P099={base:'./pigeon_base_095b.webp',serious:'./pigeon_suspicious.png'};
@@ -152,33 +174,98 @@ const galina099=()=>({role:'npc ch4-galina097',src:'./galina_base.png',position:
 const cat099=()=>({role:'npc ch4-cat097',src:'./cat_base_095m.png',position:'npc'});
 const yard099={background:'./ch4_night.jpg',atmosphere:'village',chapter:4,world:[{type:'world',key:'environment',value:'outdoors'},{type:'world',key:'location',value:'біля хати баби Галі'}]};
 
-function anonymousRecognition099(s){
-  const vodka=Boolean(s.flags?.creatureVodkaFriend),garlic=Boolean(s.flags?.creatureGarlicUsed||s.flags?.itemKnown095s_garlic),prayer=Boolean(s.flags?.creaturePrayerReactionKnown095w||s.flags?.creaturePrayerStalled095w),fight=Boolean(s.flags?.shedBattleKnockout);
-  let tail='Ви його впізнаєте. Учора саме ця людина вилазила із сараю в такому вигляді, що нормальним знайомством це назвати важко.';
-  if(vodka)tail='Ви його впізнаєте одразу. Учора ви ще поїли його горілкою біля сараю, а сьогодні він іде собі з відром, ніби так і треба.';
-  else if(garlic)tail='Ви його впізнаєте одразу. Учора ви кидали в нього часником. Сьогодні він виглядає значно менш мертвим і значно більш здатним це пригадати.';
-  else if(prayer)tail='Ви його впізнаєте одразу. Після вчорашньої молитви біля сараю ця зустріч мала б виглядати дивніше, але, походу, в цьому селі планка вже зламалась.';
-  else if(fight)tail='Ви його впізнаєте одразу. Учора біля сараю ви вже встигли нормально так познайомитись кулаками.';
-  return `Зранку біля хати баби Галі ви помічаєте чоловіка з відром. Він іде дорогою у ваш бік і теж придивляється до вас.\n\n${tail}\n\nЄвпапій поруч раптом робить дуже зайнятий вигляд.\n\n– О, мужик, – каже чоловік, коли підходить ближче. – Живий.\n\n– Сам бачу.`;
+function memoryBranch099(s){
+  if(s.flags?.creatureVodkaFriend)return'vodka';
+  if(s.flags?.creatureGarlicUsed||s.flags?.itemKnown095s_garlic)return'garlic';
+  if(s.flags?.creaturePrayerReactionKnown095w||s.flags?.creaturePrayerStalled095w||s.flags?.creatureKilledByPrayer)return'prayer';
+  if(s.flags?.shedBattleKnockout)return'fight';
+  return'fight';
 }
-function namedReaction099(s){
-  const vodka=Boolean(s.flags?.creatureVodkaFriend),garlic=Boolean(s.flags?.creatureGarlicUsed||s.flags?.itemKnown095s_garlic),prayer=Boolean(s.flags?.creaturePrayerReactionKnown095w||s.flags?.creaturePrayerStalled095w),fight=Boolean(s.flags?.shedBattleKnockout);
-  let extra='Семен дивиться на вас так, ніби вчорашній сарай був звичайною побутовою незручністю.';
-  if(vodka&&garlic)extra='– За горілку спасіба. За часник не спасіба.\n\n– Та вже як вийшло.\n\n– Отож.';
-  else if(vodka)extra='– За горілку спасіба. Хороша була.\n\n– Ти після неї чуть мене не вʼєбав.\n\nСемен думає секунду.\n\n– Та? Ну, вибачай.';
-  else if(garlic)extra='Семен дивиться на ваші руки.\n\n– Часнику нема?\n\n– Нє.\n\n– Добре.';
-  else if(prayer)extra='– Тільки ти це… молитись зараз не начинай.\n\nЄвпапій дуже старанно відвертає голову.';
-  else if(fight)extra='Кілька секунд ви обоє дивитесь один на одного.\n\n– Мир? – питає Семен.\n\n– До наступного сараю.\n\n– Йде.';
-  return `Чоловік ставить відро на землю й простягає руку.\n\n– Семен.\n\n– Шо?\n\n– Мене Семен звати. Раз уже другий раз бачимся.\n\n– А. Степан.\n\nВи тиснете руки.\n\n${extra}`;
+function memoryText099(s){
+  const branch=memoryBranch099(s);
+  if(branch==='vodka')return'– За горілку, до речі, спасіба. Хороша була.';
+  if(branch==='garlic')return'Мужик переводить погляд на ваші руки.\n\n– Часнику нема?';
+  if(branch==='prayer')return'– Тільки ти це… молитись зараз не начинай.';
+  return'Мужик дивиться на вас трохи довше.\n\n– Мир?';
 }
+function memoryActors099(s){return memoryBranch099(s)==='prayer'?[hero099(),semen099(S099.talk),pigeon099(P099.base)]:[hero099(),semen099(S099.talk)]}
+function memoryChoices099(s){
+  const branch=memoryBranch099(s);
+  if(branch==='vodka')return[
+    {id:'ch4_mem_vodka_hit099',label:'Ти після неї чуть мене не вʼєбав.',next:'ch4_memory_reaction099',hiddenEffects:[{type:'flag',key:'ch4MemoryReply099',value:'vodka_hit'}]},
+    {id:'ch4_mem_vodka_paid099',label:'Наступного разу платна.',next:'ch4_memory_reaction099',hiddenEffects:[{type:'flag',key:'ch4MemoryReply099',value:'vodka_paid'},{type:'relationship',person:'semen',key:'trust',value:1}]},
+    {id:'ch4_mem_vodka_never099',label:'Я тобі більше не наливаю.',next:'ch4_memory_reaction099',hiddenEffects:[{type:'flag',key:'ch4MemoryReply099',value:'vodka_never'}]}
+  ];
+  if(branch==='garlic')return[
+    {id:'ch4_mem_garlic_offer099',label:'Є. Хочеш?',next:'ch4_memory_reaction099',hiddenEffects:[{type:'flag',key:'ch4MemoryReply099',value:'garlic_offer'},{type:'relationship',person:'semen',key:'offense',value:1}]},
+    {id:'ch4_mem_garlic_calm099',label:'Та не сци.',next:'ch4_memory_reaction099',hiddenEffects:[{type:'flag',key:'ch4MemoryReply099',value:'garlic_calm'}]},
+    {id:'ch4_mem_garlic_remember099',label:'Ти його досі памʼятаєш?',next:'ch4_memory_reaction099',hiddenEffects:[{type:'flag',key:'ch4MemoryReply099',value:'garlic_remember'}]}
+  ];
+  if(branch==='prayer')return[
+    {id:'ch4_mem_prayer_start099',label:'Отче наш…',next:'ch4_memory_reaction099',hiddenEffects:[{type:'flag',key:'ch4MemoryReply099',value:'prayer_start'},{type:'relationship',person:'semen',key:'offense',value:1}]},
+    {id:'ch4_mem_prayer_calm099',label:'Та не сци.',next:'ch4_memory_reaction099',hiddenEffects:[{type:'flag',key:'ch4MemoryReply099',value:'prayer_calm'}]},
+    {id:'ch4_mem_prayer_evp099',label:'Подивитись на Євпапія.',next:'ch4_memory_reaction099',hiddenEffects:[{type:'flag',key:'ch4MemoryReply099',value:'prayer_evp'}]}
+  ];
+  return[
+    {id:'ch4_mem_fight_peace099',label:'До наступного сараю.',next:'ch4_memory_reaction099',hiddenEffects:[{type:'flag',key:'ch4MemoryReply099',value:'fight_peace'},{type:'relationship',person:'semen',key:'trust',value:1}]},
+    {id:'ch4_mem_fight_hands099',label:'Тільки руки при собі.',next:'ch4_memory_reaction099',hiddenEffects:[{type:'flag',key:'ch4MemoryReply099',value:'fight_hands'}]},
+    {id:'ch4_mem_fight_unsure099',label:'Я ще не рішив.',next:'ch4_memory_reaction099',hiddenEffects:[{type:'flag',key:'ch4MemoryReply099',value:'fight_unsure'},{type:'relationship',person:'semen',key:'offense',value:1}]}
+  ];
+}
+function memoryReactionText099(s){
+  switch(s.flags?.ch4MemoryReply099){
+    case'vodka_hit':return'– Та не вбив же.\n\n– Дуже заспокоїв.\n\n– Ну от.';
+    case'vodka_paid':return'– Скільки?\n\n– Я пошуткував.\n\n– А.';
+    case'vodka_never':return'– Та й добре.\n\n– Шо, образився?\n\n– Нє.';
+    case'garlic_offer':return'Мужик робить пів кроку назад.\n\n– Нє.\n\n– А шо так?\n\n– Іди нахуй.';
+    case'garlic_calm':return'– Я не сцу.\n\n– Ага. Бачу.';
+    case'garlic_remember':return'– А ти б забув?\n\n– Ну… тоже правда.';
+    case'prayer_start':return'– Отче наш…\n\n– БЛЯДЬ, ХВАТИТЬ.\n\nЄвпапій збоку починає ржати.';
+    case'prayer_calm':return'– Я не сцу.\n\n– Ага. Тому й попросив.';
+    case'prayer_evp':return'Ви мовчки дивитесь на Євпапія.\n\n– Я взагалі нічого не казав, – одразу заявляє він.\n\n– І правильно, – буркає мужик.';
+    case'fight_peace':return'– До наступного сараю.\n\n– Йде.';
+    case'fight_hands':return'– Тільки руки при собі.\n\n– Домовились.';
+    case'fight_unsure':return'– Я ще не рішив.\n\n– Та рішай не спіша.';
+    default:return'Мужик киває, ніби питання закрите.';
+  }
+}
+function memoryReactionActors099(s){return String(s.flags?.ch4MemoryReply099||'').startsWith('prayer_')?[hero099(),semen099(S099.side),pigeon099(P099.base)]:[hero099(),semen099(S099.side)]}
+function introReplyScene099(id,text){return{...yard099,id,caption:'трупосмерд',storyPace:'calm',actors:[hero099(),semen099(S099.talk)],text,choices:[{id:`${id}_next`,label:'Далі',next:'ch4_memory099'}]}}
 function rebuildChapter4099(){
   const T=CHAPTER3_SCENES,oldSon=T.ch4_son_question,oldChoices=oldSon?.choices||[];
-  if(!T.ch4_intro||T.ch4_intro.__v099)return;
-  T.ch4_intro={...yard099,id:'ch4_intro',caption:'після сараю',actors:[hero099(),pigeon099(P099.base),semen099(S099.base)],onEnter:[{type:'flag',key:'chapter4Started097',value:true},{type:'flag',key:'semenEncountered099',value:true}],text:anonymousRecognition099,choices:[{id:'ch4_name099',label:'Далі',next:'ch4_semen_name099'}],__v099:true};
-  T.ch4_semen_name099={...yard099,id:'ch4_semen_name099',caption:'семен',actors:[hero099(),semen099(S099.talk),pigeon099(P099.base)],onEnter:[{type:'relationshipKnown',person:'semen',value:true},{type:'flag',key:'semenIntroduced099',value:true}],text:namedReaction099,choices:[{id:'ch4_name_next099',label:'Далі',next:'ch4_son_question'}]};
-  T.ch4_son_question={...yard099,id:'ch4_son_question',caption:'одне питання',actors:[hero099(H099.worry),semen099(S099.talk),pigeon099(P099.serious)],text:`Семен уже відходить метрів на десять, але раптом зупиняється посеред дороги й повільно повертає голову.\n\n– Мужик.\n\n– Шо?\n\n– В тебе син є?\n\nВи завмираєте.\n\n– Шо ти сказав?\n\n– Питаю, син у тебе є?\n\n– Звідки ти знаєш?\n\nЄвпапій теж затихає.\n\nСемен дивиться на вас зовсім спокійно.\n\n– Та не заводься ти. Живий твій малий.\n\nВи різко робите крок до нього.\n\n– Ти його бачив?\n\n– Нє.\n\n– Тоді звідки ти знаєш, шо він живий?`,choices:[{id:'ch4_son_galina099',label:'Далі',next:'ch4_son_galina099'}]};
-  T.ch4_son_galina099={...yard099,id:'ch4_son_galina099',caption:'баба галя',actors:[hero099(H099.angry),galina099(),semen099(S099.side)],text:`За вашою спиною скриплять двері. З хати виходить баба Галя, дивиться на вас, потім на Семена й одразу хмуриться.\n\n– До мене йди.\n\n– Баб Галь, він знає про мого сина.\n\n– Я чула. Іди сюди.\n\n– А я хочу знати, звідки він знає.\n\nСемен уже збирається щось відповісти, але баба Галя перебиває:\n\n– Семене. Не треба.\n\n– А шо я?\n\n– Ти поняв.\n\nВін дивиться на неї ще секунду й замовкає.\n\nВи переводите погляд на бабу Галю.\n\n– А ви тоже знаєте?\n\nВона не відповідає одразу.`,choices:[{id:'ch4_son_reaction099',label:'Далі',next:'ch4_son_reaction099'}]};
-  T.ch4_son_reaction099={...yard099,id:'ch4_son_reaction099',caption:'всі шось знають',actors:[hero099(H099.worry),pigeon099(P099.serious),cat099()],text:`У дверях зʼявляється Риже гамно й сідає на порозі. Євпапій підлітає ближче, але цього разу не жартує.\n\n– Мужик, не лізь зараз.\n\nВи різко дивитесь на нього.\n\n– Ти тоже знаєш?\n\n– Нє.\n\n– Тоді не пизди.\n\nЄвпапій відкриває дзьоб, але передумує. Кіт дивиться в сторону дороги. Баба Галя й Семен лишились позаду, і чим довше всі мовчать, тим сильніше бісить відчуття, що єдиний, кому тут ніхуя не пояснили, – це ви.`,choices:oldChoices};
+  if(!T.ch4_intro||T.ch4_intro.__v099final)return;
+
+  T.ch4_intro={...yard099,id:'ch4_intro',caption:'після сараю',storyPace:'calm',actors:[hero099(),pigeon099(P099.base),semen099(S099.base)],onEnter:[{type:'flag',key:'chapter4Started097',value:true},{type:'flag',key:'semenEncountered099',value:true},{type:'flag',key:'storyUrgent099',value:false}],text:`Ви стоїте у дворі біля хати баби Галі, коли на дорозі зʼявляється якийсь мужик з відром. Іде собі спокійно, ніби тут учора ніхто ні за ким не ганявся, нікого не били й узагалі нічого дивного не відбувалось.\n\nЄвпапій помічає його раніше за вас і раптом притихає. Мужик теж дивиться у ваш бік, трохи сповільнюється, а коли підходить ближче, киває вам так буденно, ніби ви сусіди, які кожного ранку зустрічаються біля криниці.\n\n– О, мужик. Живий.\n\n– А мав не бути?\n\n– Та всяке буває.`,choices:[{id:'ch4_intro_next099',label:'Далі',next:'ch4_recognize099'}],__v099final:true};
+
+  T.ch4_recognize099={...yard099,id:'ch4_recognize099',caption:'десь я цю морду бачив',storyPace:'calm',actors:[hero099(),semen099(S099.base)],text:`Ви вже хочете щось відповісти, але зависаєте. Голос знайомий. Та й морда ця десь уже була, тільки вчора вона виглядала значно гірше.\n\nВи придивляєтесь до нього уважніше. До нормальної сорочки, чистого обличчя, відра в руці, а тоді в голові нарешті складається вчорашній сарай.\n\nТой самий голос. Та сама морда.\n\nТільки тепер перед вами стоїть цілком нормальний мужик, а не смердюче хуй знає шо, яке вилізло з темряви й чуть вас не вʼєбало.\n\n– ТРУПОСМЕРД?!\n\nМужик знизує плечима.\n\n– Ну, бувало.`,choices:s=>[
+    {id:'ch4_reply_kill099',label:'Ти мене чуть не вбив.',next:'ch4_reply_kill099'},
+    {id:'ch4_reply_often099',label:'І часто з тобою таке?',next:'ch4_reply_often099'},
+    {id:'ch4_reply_broad099',label:'Виглядаєш, сука, підозріло бодро.',next:'ch4_reply_broad099'},
+    ...(effectiveStat(s,'pofigism')>=2?[{id:'ch4_reply_pofig099',label:'[ПОХУЇЗМ] Ну був і був.',next:'ch4_reply_pofig099'}]:[])
+  ]};
+
+  T.ch4_reply_kill099=introReplyScene099('ch4_reply_kill099','– Та не вбив же.\n\n– Дуже заспокоїв.\n\n– Ну от.');
+  T.ch4_reply_often099=introReplyScene099('ch4_reply_often099','Мужик трохи зависає.\n\n– Буває.\n\n– Це не відповідь.\n\n– Іншої нема.');
+  T.ch4_reply_broad099=introReplyScene099('ch4_reply_broad099','– А шо, мав дальше смердіти?\n\n– Було б логічніше.');
+  T.ch4_reply_pofig099=introReplyScene099('ch4_reply_pofig099','Мужик дивиться на вас.\n\n– І всьо?\n\n– А шо я маю зробити? Назад тебе в сарай запхати?\n\n– Нє.\n\n– Ну то йдем далі.');
+
+  T.ch4_memory099={...yard099,id:'ch4_memory099',caption:'вчорашнє',storyPace:'calm',actors:memoryActors099,text:memoryText099,choices:memoryChoices099};
+  T.ch4_memory_reaction099={...yard099,id:'ch4_memory_reaction099',caption:'вчорашнє',storyPace:'calm',actors:memoryReactionActors099,text:memoryReactionText099,choices:[{id:'ch4_memory_done099',label:'Далі',next:'ch4_semen_name099'}]};
+
+  T.ch4_semen_name099={...yard099,id:'ch4_semen_name099',caption:'знайомство',storyPace:'calm',actors:[hero099(),semen099(S099.talk)],onEnter:[{type:'relationshipKnown',person:'semen',value:true},{type:'flag',key:'semenIntroduced099',value:true}],text:`Мужик поправляє відро в руці.\n\n– Семен, до речі.\n\n– А тебе як? – питає Семен.`,choices:[
+    {id:'ch4_name_stepan099',label:'Степан.',next:'ch4_name_stepan099'},
+    {id:'ch4_name_why099',label:'А тобі нахуя?',next:'ch4_name_why099'},
+    {id:'ch4_name_muzhik099',label:'Мужик. Так мене голуб назвав.',next:'ch4_name_muzhik099'}
+  ]};
+  T.ch4_name_stepan099={...yard099,id:'ch4_name_stepan099',caption:'знайомство',storyPace:'calm',actors:[hero099(),semen099(S099.base)],text:'– Степан.\n\nСемен киває.\n\n– Будем знати.',choices:[{id:'ch4_name_stepan_next099',label:'Далі',next:'ch4_before_son099'}]};
+  T.ch4_name_why099={...yard099,id:'ch4_name_why099',caption:'знайомство',storyPace:'calm',actors:[hero099(),semen099(S099.side)],text:'– Та просто спитав.\n\n– Ну то Степан.\n\n– О. Бачиш, не так тяжко.',choices:[{id:'ch4_name_why_next099',label:'Далі',next:'ch4_before_son099'}]};
+  T.ch4_name_muzhik099={...yard099,id:'ch4_name_muzhik099',caption:'мужик другий',storyPace:'calm',actors:[hero099(),semen099(S099.talk),pigeon099(P099.base)],text:'Євпапій одразу встряє:\n\n– Не пизди. Я перший придумав.\n\nСемен киває.\n\n– Значить, Мужик Другий.\n\n– Степан, блядь.',choices:[{id:'ch4_name_muzhik_next099',label:'Далі',next:'ch4_before_son099'}]};
+
+  T.ch4_before_son099={...yard099,id:'ch4_before_son099',caption:'ще одне',storyPace:'calm',actors:[hero099(),semen099(S099.base)],text:'Семен піднімає відро й уже збирається йти далі. Проходить кілька метрів, але потім зупиняється й озирається на вас.\n\n– Степан.\n\n– Шо?',choices:[{id:'ch4_before_son_next099',label:'Далі',next:'ch4_son_question'}]};
+
+  T.ch4_son_question={...yard099,id:'ch4_son_question',caption:'одне питання',storyPace:'urgent',actors:[hero099(H099.worry),semen099(S099.talk)],onEnter:[{type:'flag',key:'storyUrgent099',value:true}],text:`– В тебе син є?\n\nВи кілька секунд просто дивитесь на Семена.\n\n– Шо ти сказав?\n\n– Питаю, син у тебе є?\n\n– Звідки ти знаєш?\n\nСемен не відповідає одразу. Стоїть з відром у руці й дивиться на вас так спокійно, ніби спитав, котра година.\n\n– Та не заводься ти. Живий твій малий.\n\nВи різко робите крок до нього.\n\n– Ти його бачив?\n\n– Нє.\n\n– Тоді звідки ти знаєш, шо він живий?`,choices:[{id:'ch4_son_galina099',label:'Далі',next:'ch4_son_galina099'}]};
+  T.ch4_son_galina099={...yard099,id:'ch4_son_galina099',caption:'баба галя',storyPace:'urgent',actors:[hero099(H099.angry),galina099(),semen099(S099.side)],text:`За вашою спиною скриплять двері. З хати виходить баба Галя, дивиться на вас, потім на Семена й одразу хмуриться.\n\n– До мене йди.\n\n– Баб Галь, він знає про мого сина.\n\n– Я чула. Іди сюди.\n\n– А я хочу знати, звідки він знає.\n\nСемен уже збирається щось відповісти, але баба Галя перебиває:\n\n– Семене. Не треба.\n\n– А шо я?\n\n– Ти поняв.\n\nВін дивиться на неї ще секунду й замовкає.\n\nВи переводите погляд на бабу Галю.\n\n– А ви тоже знаєте?\n\nВона не відповідає одразу.`,choices:[{id:'ch4_son_reaction099',label:'Далі',next:'ch4_son_reaction099'}]};
+  T.ch4_son_reaction099={...yard099,id:'ch4_son_reaction099',caption:'всі шось знають',storyPace:'urgent',actors:[hero099(H099.worry),pigeon099(P099.serious),cat099()],text:`У дверях зʼявляється Риже гамно й сідає на порозі. Євпапій підлітає ближче, але цього разу не жартує.\n\n– Мужик, не лізь зараз.\n\nВи різко дивитесь на нього.\n\n– Ти тоже знаєш?\n\n– Нє.\n\n– Тоді не пизди.\n\nЄвпапій відкриває дзьоб, але передумує. Кіт дивиться в сторону дороги. Баба Галя й Семен лишились позаду, і чим довше всі мовчать, тим сильніше бісить відчуття, що єдиний, кому тут ніхуя не пояснили, – це ви.`,choices:oldChoices};
 }
 
 // ---- Menu knowledge ---------------------------------------------------------------
@@ -240,10 +327,24 @@ async function renderMap099(){
   root.innerHTML=`<div class="section-title"><h2>Карта</h2></div><div class="map-visual ${m.unlocked?'':'locked'}"><img src="./map_village.jpg?v=084" alt="Карта села">${m.unlocked?`<div class="map-overlays">${overlays}</div>`:'<div class="map-lock-copy"><b>ПОКИ ЗАКРИТО</b><span>Спочатку треба трохи розібратись, де ви взагалі опинились.</span></div>'}</div>${m.unlocked?'<div class="map-help">Підпис зʼявляється після того, як ви побували в цьому місці. Невідомі точки поки лишаються знаком питання.</div>':''}`;
 }
 
+function sceneHasBattle099(scene,state){
+  if(!scene)return false;
+  let choices=[];try{choices=asArray099(resolve099(scene.choices||[],state))}catch{}
+  return choices.some(c=>Boolean(c?.battle));
+}
+function sceneUrgent099(scene,state){
+  if(!scene)return false;
+  if(scene.storyPace==='urgent'||scene.shopAccess===false||scene.urgent===true||scene.dangerous===true)return true;
+  if(sceneHasBattle099(scene,state))return true;
+  const meta=`${scene.caption||''} ${scene.stageTone||''} ${scene.atmosphere||''} ${resolve099(scene.background||'',state)||''}`.toLocaleLowerCase('uk-UA');
+  return /туман|fog|battle|combat|chase|погон/.test(meta);
+}
 function shopSafe099(s){
   if(!s?.flags?.shopUnlocked)return false;
   if(s.flags?.activeHero097==='evpapiy'||s.flags?.ch4StepanMissing)return false;
   if(threatInfo(s)?.key!=='low')return false;
+  const scene=sceneById099(String(s.story?.sceneId||s.scene||''));
+  if(s.flags?.storyUrgent099||sceneUrgent099(scene,s))return false;
   const loc=String(s.world?.location||'').toLocaleLowerCase('uk-UA'),env=String(s.world?.environment||'').toLocaleLowerCase('uk-UA');
   if(/туман|ліс|сарай|болот|хлів/.test(loc))return false;
   return env==='indoors'||/хат|двір|криниц|помин|село|дорог/.test(loc);
@@ -283,11 +384,33 @@ function installTest099(){
 
 // ---- Image preloading --------------------------------------------------------------
 const imageCache099=new Map();
-function warmImage099(src,decode=false){
-  if(!src||typeof src!=='string')return Promise.resolve();
+function imageRecord099(src){
+  if(!src||typeof src!=='string')return null;
   if(imageCache099.has(src))return imageCache099.get(src);
-  const p=new Promise(resolve=>{const im=new Image();im.decoding='async';im.onload=()=>resolve();im.onerror=()=>resolve();im.src=src;if(decode&&im.decode)im.decode().then(resolve).catch(()=>{});});
-  imageCache099.set(src,p);return p;
+  const im=new Image();im.decoding='async';
+  const rec={img:im,loaded:null,decoded:null,ok:false};
+  rec.loaded=new Promise(resolve=>{
+    const done=ok=>{rec.ok=Boolean(ok&&im.naturalWidth);resolve(rec.ok)};
+    im.addEventListener('load',()=>done(true),{once:true});
+    im.addEventListener('error',()=>done(false),{once:true});
+    im.src=src;
+    if(im.complete)setTimeout(()=>done(im.naturalWidth>0),0);
+  });
+  imageCache099.set(src,rec);return rec;
+}
+async function preloadImage099(src){const rec=imageRecord099(src);if(!rec)return false;return rec.loaded}
+async function decodeImage099(src){
+  const rec=imageRecord099(src);if(!rec)return false;
+  const loaded=await rec.loaded;if(!loaded)return false;
+  if(!rec.decoded){
+    rec.decoded=(async()=>{
+      if(typeof rec.img.decode==='function'){
+        try{await rec.img.decode()}catch{if(!rec.img.complete||!rec.img.naturalWidth)return false}
+      }
+      return Boolean(rec.img.complete&&rec.img.naturalWidth);
+    })();
+  }
+  return rec.decoded;
 }
 function assetsForScene099(scene,state){
   const out=[];if(!scene)return out;
@@ -296,34 +419,47 @@ function assetsForScene099(scene,state){
   for(const a of actors){let src='';try{src=resolve099(a?.src,state)}catch{}if(typeof src==='string')out.push(src)}
   return [...new Set(out)];
 }
-async function decodeScene099(scene,state){await Promise.allSettled(assetsForScene099(scene,state).map(src=>warmImage099(src,true)))}
+async function decodeScene099(scene,state){
+  const assets=assetsForScene099(scene,state);
+  if(!assets.length)return true;
+  const results=await Promise.all(assets.map(src=>decodeImage099(src)));
+  return results.every(Boolean);
+}
 function warmAllScenes099(){
   const staticAssets=[];
   for(const scene of allScenes099()){
     if(typeof scene.background==='string')staticAssets.push(scene.background);
     if(Array.isArray(scene.actors))for(const a of scene.actors)if(typeof a?.src==='string')staticAssets.push(a.src);
   }
-  for(const src of [...new Set(staticAssets)])warmImage099(src,false);
+  for(const src of [...new Set(staticAssets)])preloadImage099(src);
   const critical=['./ch4_night.jpg','./ch4_fog_light.jpg','./ch4_fog_dark.jpg','./ch4_semen_base.png','./ch4_semen_talk.png','./ch4_semen_sideeye.png','./ch4_stepan_son.png','./ch4_stepan_missing.png','./pigeon_base_095b.webp','./pigeon_suspicious.png','./cat_base_095m.png','./galina_base.png','./hero_shrug_096.png','./hero_angry_096.png','./hero_worry_096.png','./hero_injured_096.png'];
-  Promise.allSettled(critical.map(src=>warmImage099(src,true)));
+  Promise.allSettled(critical.map(src=>decodeImage099(src)));
 }
 let activeRun099=0;
 function rememberRun099(target){
   const card=target?.closest?.('.run-card');if(card){const n=Number((card.textContent||'').match(/Проходження\s+(\d+)/)?.[1]||0);if(n)activeRun099=n}
+  const manual=target?.closest?.('[data-start-manual]');if(manual){const n=Number(String(manual.dataset.startManual||'').split(':')[0]||0);if(n)activeRun099=n}
   if(target?.closest?.('#continueTestBtn,[data-test-chapter],[data-test-ch4-097]'))activeRun099=99;
+}
+function predictChoiceState099(state,choice){
+  try{
+    const r=executeAction(clone099(state),{id:choice.id,minutes:choice.minutes||0,activity:choice.activity||'light',effects:choice.effects||[],hiddenEffects:choice.hiddenEffects||[]});
+    const next=normalizeState(r.state);if(choice.next){next.story=next.story||{};next.story.sceneId=choice.next;next.scene=choice.next}return next;
+  }catch{return state}
 }
 async function interceptStoryChoice099(e){
   const btn=e.target?.closest?.('.story-choice');if(!btn||btn.dataset.preload099==='done'||!activeRun099)return;
   const buttons=[...document.querySelectorAll('#storyChoices .story-choice')],index=buttons.indexOf(btn);if(index<0)return;
   const nativeClick=btn.onclick;
-  e.preventDefault();e.stopImmediatePropagation();btn.disabled=true;
+  e.preventDefault();e.stopImmediatePropagation();btn.disabled=true;btn.setAttribute('aria-busy','true');
   try{
     const raw=await loadRun(activeRun099);
     const state=raw?normalizeState(raw):null,scene=state?sceneById099(String(state.story?.sceneId||state.scene||'')):null;
     let choices=[];if(scene)choices=asArray099(resolve099(scene.choices||[],state)).filter(c=>c&&(!c.showIf||c.showIf(state)));
-    const next=choices[index]?.next;if(next)await decodeScene099(sceneById099(next),state);
-  }catch(e){console.warn('v099 preload skipped',e)}
-  btn.dataset.preload099='done';btn.disabled=false;
+    const choice=choices[index];
+    if(choice?.next){const predicted=predictChoiceState099(state,choice);await decodeScene099(sceneById099(choice.next),predicted)}
+  }catch(err){console.warn('v099 preload skipped',err)}
+  btn.dataset.preload099='done';btn.disabled=false;btn.removeAttribute('aria-busy');
   if(typeof nativeClick==='function')await nativeClick.call(btn);
 }
 function installPreloadHooks099(){
@@ -341,25 +477,24 @@ function addCss099(){
   if(document.querySelector('#patch099css'))return;const st=document.createElement('style');st.id='patch099css';st.textContent=`
     .legacy-test099{display:none!important}
     .stage-image>.actor{bottom:0!important;object-fit:contain!important;transition:none!important}
-    .stage-image:not(:has(>.actor.actor-1))>.actor.actor-0{left:50%!important;right:auto!important;transform:translateX(-50%)!important;max-width:46%!important;max-height:92%!important}
-    .stage-image:has(>.actor.actor-1):not(:has(>.actor.actor-2))>.actor.actor-0{left:3%!important;right:auto!important;transform:none!important;max-width:40%!important;max-height:92%!important}
-    .stage-image:has(>.actor.actor-1):not(:has(>.actor.actor-2))>.actor.actor-1{left:auto!important;right:3%!important;transform:none!important;max-width:40%!important;max-height:92%!important}
-    .stage-image:has(>.actor.actor-2)>.actor.actor-0{left:2%!important;right:auto!important;transform:none!important;max-width:31%!important;max-height:92%!important}
-    .stage-image:has(>.actor.actor-2)>.actor.actor-1{left:50%!important;right:auto!important;transform:translateX(-50%)!important;max-width:31%!important;max-height:92%!important}
-    .stage-image:has(>.actor.actor-2)>.actor.actor-2{left:auto!important;right:2%!important;transform:none!important;max-width:31%!important;max-height:92%!important}
-    .stage-image>.actor.pigeon,.stage-image>.actor.ch4-pigeon097{max-width:19%!important;max-height:40%!important;z-index:7!important}
-    .stage-image>.actor.ch4-cat097{max-width:22%!important;max-height:45%!important;z-index:7!important}
+    .stage-image:not(:has(>.actor.actor-1))>.actor.actor-0{left:50%!important;right:auto!important;transform:translateX(-50%)!important}
+    .stage-image:has(>.actor.actor-1):not(:has(>.actor.actor-2))>.actor.actor-0{left:3%!important;right:auto!important;transform:none!important}
+    .stage-image:has(>.actor.actor-1):not(:has(>.actor.actor-2))>.actor.actor-1{left:auto!important;right:3%!important;transform:none!important}
+    .stage-image:has(>.actor.actor-2)>.actor.actor-0{left:2%!important;right:auto!important;transform:none!important}
+    .stage-image:has(>.actor.actor-2)>.actor.actor-1{left:50%!important;right:auto!important;transform:translateX(-50%)!important}
+    .stage-image:has(>.actor.actor-2)>.actor.actor-2{left:auto!important;right:2%!important;transform:none!important}
+    .stage-image:not(:has(>.actor.actor-1))>.actor.actor-0:not(.pigeon):not(.ch4-pigeon097):not(.ch4-cat097){max-width:46%!important;max-height:92%!important}
+    .stage-image:has(>.actor.actor-1):not(:has(>.actor.actor-2))>.actor.actor-0:not(.pigeon):not(.ch4-pigeon097):not(.ch4-cat097),.stage-image:has(>.actor.actor-1):not(:has(>.actor.actor-2))>.actor.actor-1:not(.pigeon):not(.ch4-pigeon097):not(.ch4-cat097){max-width:40%!important;max-height:92%!important}
+    .stage-image:has(>.actor.actor-2)>.actor.actor-0:not(.pigeon):not(.ch4-pigeon097):not(.ch4-cat097),.stage-image:has(>.actor.actor-2)>.actor.actor-1:not(.pigeon):not(.ch4-pigeon097):not(.ch4-cat097),.stage-image:has(>.actor.actor-2)>.actor.actor-2:not(.pigeon):not(.ch4-pigeon097):not(.ch4-cat097){max-width:31%!important;max-height:92%!important}
     .relation-card small{display:block;margin-top:7px;opacity:.7}
     @media(max-width:620px){
-      .stage-image:has(>.actor.actor-1):not(:has(>.actor.actor-2))>.actor.actor-0,.stage-image:has(>.actor.actor-1):not(:has(>.actor.actor-2))>.actor.actor-1{max-width:43%!important}
-      .stage-image:has(>.actor.actor-2)>.actor.actor-0,.stage-image:has(>.actor.actor-2)>.actor.actor-1,.stage-image:has(>.actor.actor-2)>.actor.actor-2{max-width:33%!important}
-      .stage-image>.actor.pigeon,.stage-image>.actor.ch4-pigeon097{max-width:21%!important;max-height:36%!important}
-      .stage-image>.actor.ch4-cat097{max-width:23%!important;max-height:40%!important}
+      .stage-image:has(>.actor.actor-1):not(:has(>.actor.actor-2))>.actor.actor-0:not(.pigeon):not(.ch4-pigeon097):not(.ch4-cat097),.stage-image:has(>.actor.actor-1):not(:has(>.actor.actor-2))>.actor.actor-1:not(.pigeon):not(.ch4-pigeon097):not(.ch4-cat097){max-width:43%!important}
+      .stage-image:has(>.actor.actor-2)>.actor.actor-0:not(.pigeon):not(.ch4-pigeon097):not(.ch4-cat097),.stage-image:has(>.actor.actor-2)>.actor.actor-1:not(.pigeon):not(.ch4-pigeon097):not(.ch4-cat097),.stage-image:has(>.actor.actor-2)>.actor.actor-2:not(.pigeon):not(.ch4-pigeon097):not(.ch4-cat097){max-width:33%!important}
     }
   `;document.head.appendChild(st);
 }
 
-export const __v099Test={shopSafe:shopSafe099,mapState:mapState099,knownCharacters:knownCharacters099,migrateState:migrateState099};
+export const __v099Test={shopSafe:shopSafe099,sceneUrgent:sceneUrgent099,mapState:mapState099,knownCharacters:knownCharacters099,migrateState:migrateState099,decodeScene:decodeScene099,memoryBranch:memoryBranch099};
 
 function apply099(){
   stamp099();disableSound099();
@@ -367,7 +502,7 @@ function apply099(){
   cleanHeadInjuryRuntime099();
   rebuildChapter4099();
   addCss099();installMenu099();installTest099();fixUiCopy099();installPreloadHooks099();
-  window.__dntMigration099=migrateAllSaves099();
+  window.__dntMigration099=runMigrationGate099();
   for(const ms of [0,250,900])setTimeout(()=>{stamp099();disableSound099();fixUiCopy099()},ms);
 }
 queueMicrotask(apply099);
