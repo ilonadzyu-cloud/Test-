@@ -278,9 +278,9 @@ export const CHAPTER3_SCENES={
   ch3_wakeup:{
     ...shed,id:'ch3_wakeup',caption:'очухались',actors:[hero('hero_injured_096.png'),pigeon('pigeon_base.png')],
     onEnter:s=>{
-      const out=[{type:'statusAdd',id:'headInjury'},{type:'flag',key:'shedKnifeDestroyed',value:true},{type:'flag',key:'shedBattleKnockout',value:true}];
+      const out=[{type:'flag',key:'shedKnifeDestroyed',value:true},{type:'flag',key:'shedBattleKnockout',value:true}];
       if(itemCount(s,'knife')>0)out.push({type:'itemRemove',id:'knife',qty:1});
-      if(canFit(s,'old_key'))out.push({type:'itemAdd',id:'old_key',qty:1});
+      if(itemCount(s,'old_key')<=0&&canFit(s,'old_key'))out.push({type:'itemAdd',id:'old_key',qty:1});
       return out;
     },
     text:`Ви приходите до тями від того, що вам тупо важко дихати.
@@ -307,9 +307,9 @@ export const CHAPTER3_SCENES={
   },
 
   ch3_galina:{
-    ...shed,id:'ch3_galina',caption:'баба галя',actors:s=>[hero(s.activeStatuses?.includes('headInjury')?'hero_injured_096.png':'ch2_hero_local.png'),galina()],
+    ...shed,id:'ch3_galina',caption:'баба галя',actors:s=>[hero(s.flags?.shedHeadInjuryStory097?'hero_injured_096.png':'ch2_hero_local.png'),galina()],
     onEnter:[{type:'flag',key:'chapter3PreviewEnd',value:true}],
-    text:s=>s.activeStatuses?.includes('headInjury')?`Ви ще крутите ключ у руці, коли з-за рогу зʼявляється баба Галя. Дивиться на вас, на кров на потилиці, на сарай. Обличчя міняється буквально на секунду, але потім знов стає таким, ніби нічого особливого не сталося.
+    text:s=>s.flags?.shedHeadInjuryStory097?`Ви ще крутите ключ у руці, коли з-за рогу зʼявляється баба Галя. Дивиться на вас, на кров на потилиці, на сарай. Обличчя міняється буквально на секунду, але потім знов стає таким, ніби нічого особливого не сталося.
 
 – Баб Галь, шо то було?
 

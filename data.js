@@ -40,7 +40,6 @@ export const STATUS_DEFS={
     durationMinutes:60,
     remove:'сам пройде через 1 ігрову годину.'
   },
-  headInjury:{name:'РОЗБИТА ГОЛОВА',portrait:'./portrait_worry.png',blurb:'Голова гуде, на потилиці кров.',mods:{attention:-1,agility:-1},remove:'рану треба обробити й перевʼязати.'},
   bump:{name:'ШИШКА',portrait:'./portrait_worry.png',blurb:'Могло бути й гірше.',mods:{attention:-1},remove:'сама пройде з часом.'},
   tipsy:{name:'ПІД ГРАДУСОМ',portrait:'./portrait_base.png',blurb:'Ви під градусом.',mods:{pofigism:2,charisma:1,attention:-1,agility:-1},durationMinutes:90,remove:'90 ігрових хвилин після останньої горілки.'}
 };
